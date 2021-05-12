@@ -1,0 +1,19 @@
+name: 'Generate Diffs'
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Number of releases to diff'
+        required: true
+        default: '25'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Generate diffs
+        uses: ./actions/gen-diffs
+        with:
+          count: "${{ github.event.inputs.count }}"
