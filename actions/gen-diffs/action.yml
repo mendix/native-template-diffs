@@ -1,0 +1,10 @@
+name: 'Diff Generator'
+description: 'Generate diffs from the native template repository'
+inputs:
+  count:
+    description: 'Number of releases to diff'
+    required: true
+    default: '25'
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
