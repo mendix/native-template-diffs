@@ -1,0 +1,81 @@
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 8acb126..a1efd74 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -35,7 +35,7 @@
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustResize">
++        android:windowSoftInputMode="adjustPan">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/package-lock.json b/package-lock.json
+index 3d2e848..f5920e5 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "6.0.1",
++  "version": "6.0.2",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -8335,9 +8335,9 @@
+       }
+     },
+     "react-native-device-info": {
+-      "version": "6.1.0",
+-      "resolved": "https://registry.npmjs.org/react-native-device-info/-/react-native-device-info-6.1.0.tgz",
+-      "integrity": "sha512-IYvHMTVjQi3O8IX8hSK2oAzD2OCF/s/iXg5c9Ur0bcvqeqlrw/+5ucCPZ2vD5st2E8GqyJpzCZhbtP+sVLYppQ=="
++      "version": "8.0.1",
++      "resolved": "https://registry.npmjs.org/react-native-device-info/-/react-native-device-info-8.0.1.tgz",
++      "integrity": "sha512-5fIcrEfxsyIJ0HZ/pHd+DeYwC81wi5tupFkPSASYXz/7QhatF8W0W6qR+YlvI6gJVSFNgQKgrPrh18RGMgbZdg=="
+     },
+     "react-native-fast-image": {
+       "version": "8.3.2",
+diff --git a/package.json b/package.json
+index d744a72..d41fdd9 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "6.0.1",
++  "version": "6.0.2",
+   "private": true,
+   "scripts": {
+     "postinstall": "patch-package && jetify",
+@@ -22,7 +22,7 @@
+     "react-native-calendar-events": "2.1.0",
+     "react-native-camera": "3.40.0",
+     "react-native-code-push": "6.3.0",
+-    "react-native-device-info": "6.1.0",
++    "react-native-device-info": "8.0.1",
+     "react-native-fast-image": "8.3.2",
+     "react-native-geocoder": "0.5.0",
+     "react-native-gesture-handler": "1.8.0",
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+new file mode 100644
+index 0000000..9d24528
+--- /dev/null
++++ b/patches/react-native-image-picker+2.3.4.patch
+@@ -0,0 +1,16 @@
++diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++index aa7641c..9438aea 100644
++--- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+++++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++@@ -216,6 +216,11 @@ public class MediaUtils
++             scaledPhoto.recycle();
++             scaledPhoto = null;
++         }
+++
+++        if(imageConfig.original.getAbsolutePath() != null){
+++            new File(imageConfig.original.getAbsolutePath()).delete();
+++        }
+++
++         return result;
++     }
++

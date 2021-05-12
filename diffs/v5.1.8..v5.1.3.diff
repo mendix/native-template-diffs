@@ -1,0 +1,358 @@
+diff --git a/.github/workflows/android-build-custom-dev-app.yml b/.github/workflows/android-build-custom-dev-app.yml
+index 4fcffda..35c7726 100644
+--- a/.github/workflows/android-build-custom-dev-app.yml
++++ b/.github/workflows/android-build-custom-dev-app.yml
+@@ -1,10 +1,8 @@
+-name: '[Android] Custom Dev App CI'
++name: Android Custom Dev App CI
+ 
+ on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master, release/*]
++    branches: [ master ]
+ 
+ jobs:     
+   build:
+diff --git a/.github/workflows/ios-build-custom-dev-app.yml b/.github/workflows/ios-build-custom-dev-app.yml
+index 5717a36..790245d 100644
+--- a/.github/workflows/ios-build-custom-dev-app.yml
++++ b/.github/workflows/ios-build-custom-dev-app.yml
+@@ -1,10 +1,8 @@
+-name: '[iOS] Custom Dev App CI'
++name: IOS Custom Dev App CI
+ 
+ on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master, release/*]
++    branches: [master]
+ 
+ jobs:
+   build:
+diff --git a/.github/workflows/windows-test-npm-installation.yml b/.github/workflows/windows-test-npm-installation.yml
+deleted file mode 100644
+index a3760cd..0000000
+--- a/.github/workflows/windows-test-npm-installation.yml
++++ /dev/null
+@@ -1,19 +0,0 @@
+-name: '[Windows] Test npm installation'
+-
+-on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+-  pull_request:
+-    branches: [master, release/*]
+-
+-jobs:
+-  build:
+-    runs-on: windows-latest
+-
+-    steps:
+-      - uses: actions/checkout@v2
+-      - uses: actions/setup-node@v2
+-        with:
+-          node-version: '14'
+-          architecture: 'x64'
+-      - run: npm install
+\ No newline at end of file
+diff --git a/android/app/src/dev/AndroidManifest.xml b/android/app/src/dev/AndroidManifest.xml
+index be7074e..074b971 100644
+--- a/android/app/src/dev/AndroidManifest.xml
++++ b/android/app/src/dev/AndroidManifest.xml
+@@ -15,6 +15,6 @@
+             android:name="com.mendix.mendixnative.activity.MendixReactActivity"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+             android:launchMode="singleTop"
+-            android:windowSoftInputMode="adjustPan"></activity>
++            android:windowSoftInputMode="adjustResize"></activity>
+     </application>
+ </manifest>
+diff --git a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+index 8d64761..56cf74e 100644
+--- a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+ 
+         // This check is required for deep link to work.
+         // Changes here will affect deep linking functionality
+-        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) != null) {
++        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) == null) {
+             launchApp(appPreferences.getAppUrl());
+         }
+     }
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index a1efd74..8acb126 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -35,7 +35,7 @@
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustPan">
++        android:windowSoftInputMode="adjustResize">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/ios/Config/config.xcconfig b/ios/Config/config.xcconfig
+index 7adddb7..d9e8867 100644
+--- a/ios/Config/config.xcconfig
++++ b/ios/Config/config.xcconfig
+@@ -4,5 +4,3 @@ BUNDLE_DISPLAY_NAME = NativeTemplate
+ BUNDLE_IDENTIFIER = com.mendix.native.template
+ 
+ RUNTIME_URL = http:\/\/localhost:8080
+-
+-PRODUCT_NAME = nativeTemplate
+diff --git a/ios/Dev/Config/config.xcconfig b/ios/Dev/Config/config.xcconfig
+index bab3094..1766679 100644
+--- a/ios/Dev/Config/config.xcconfig
++++ b/ios/Dev/Config/config.xcconfig
+@@ -3,5 +3,3 @@
+ MAIN_STORY_BOARD = LaunchApp
+ BUNDLE_DISPLAY_NAME = Dev - NativeTemplate
+ BUNDLE_IDENTIFIER_APPEND = .developerapp
+-
+-PRODUCT_NAME = NativeTemplateDev
+diff --git a/ios/nativeTemplate.xcodeproj/project.pbxproj b/ios/nativeTemplate.xcodeproj/project.pbxproj
+index b789257..7deeabf 100644
+--- a/ios/nativeTemplate.xcodeproj/project.pbxproj
++++ b/ios/nativeTemplate.xcodeproj/project.pbxproj
+@@ -682,7 +682,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+@@ -756,7 +756,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -803,7 +803,7 @@
+ 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -851,7 +851,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+@@ -971,7 +971,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -1018,7 +1018,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+diff --git a/package-lock.json b/package-lock.json
+index 662f98b..f4eda6a 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.8",
++  "version": "5.1.3",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -13364,9 +13364,9 @@
+       }
+     },
+     "react-native-image-picker": {
+-      "version": "2.3.4",
+-      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.4.tgz",
+-      "integrity": "sha512-4UHu+zOyDT570r5mIbjH6h1iMrKIq/qfsKiAVUEZwncVegh0usJiEYNyJw4CEVwNeehmye/ia5sLDsa+kzIE4g=="
++      "version": "2.3.1",
++      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.1.tgz",
++      "integrity": "sha512-c/a2h7/T7yBo5KlNQhcSn4xf4+6Li6LfJ59+GZT1ZzzWrj/6X8DiJ/TJBOlOZMC5tJriZKuRkWSsr74k6z+brw=="
+     },
+     "react-native-inappbrowser-reborn": {
+       "version": "3.3.4",
+diff --git a/package.json b/package.json
+index c5941f5..a9d0696 100644
+--- a/package.json
++++ b/package.json
+@@ -1,9 +1,9 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.8",
++  "version": "5.1.3",
+   "private": true,
+   "scripts": {
+-    "postinstall": "patch-package && jetify"
++    "postinstall": "npx patch-package && npx jetify"
+   },
+   "dependencies": {
+     "@react-native-community/art": "1.2.0",
+@@ -26,7 +26,7 @@
+     "react-native-firebase": "5.6.0",
+     "react-native-geocoder": "0.5.0",
+     "react-native-gesture-handler": "1.6.0",
+-    "react-native-image-picker": "2.3.4",
++    "react-native-image-picker": "2.3.1",
+     "react-native-inappbrowser-reborn": "3.3.4",
+     "react-native-localize": "1.3.4",
+     "react-native-maps": "0.27.0",
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+deleted file mode 100644
+index f2639bc..0000000
+--- a/patches/react-native-firebase+5.6.0.patch
++++ /dev/null
+@@ -1,104 +0,0 @@
+-diff --git a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-index 24f472e..f32911f 100644
+---- a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-+++ b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-@@ -155,24 +155,30 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
+-   public Map<String, Object> getConstants() {
+-     Map<String, Object> constants = new HashMap<>();
+-     List<Map<String, Object>> appMapsList = new ArrayList<>();
+--    List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+--
+--    // TODO no way to get client id currently from app options - firebase sdk issue
+--    for (FirebaseApp app : firebaseAppList) {
+--      String appName = app.getName();
+--      FirebaseOptions appOptions = app.getOptions();
+--      Map<String, Object> appProps = new HashMap<>();
+--
+--      appProps.put("name", appName);
+--      appProps.put("apiKey", appOptions.getApiKey());
+--      appProps.put("appId", appOptions.getApplicationId());
+--      appProps.put("projectId", appOptions.getProjectId());
+--      appProps.put("projectId", appOptions.getProjectId());
+--      appProps.put("databaseURL", appOptions.getDatabaseUrl());
+--      appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+--      appProps.put("storageBucket", appOptions.getStorageBucket());
+--
+--      appMapsList.add(appProps);
+-+
+-+    try {
+-+      List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+-+
+-+      // TODO no way to get client id currently from app options - firebase sdk issue
+-+      for (FirebaseApp app : firebaseAppList) {
+-+        String appName = app.getName();
+-+        FirebaseOptions appOptions = app.getOptions();
+-+        Map<String, Object> appProps = new HashMap<>();
+-+
+-+        appProps.put("name", appName);
+-+        appProps.put("apiKey", appOptions.getApiKey());
+-+        appProps.put("appId", appOptions.getApplicationId());
+-+        appProps.put("projectId", appOptions.getProjectId());
+-+        appProps.put("projectId", appOptions.getProjectId());
+-+        appProps.put("databaseURL", appOptions.getDatabaseUrl());
+-+        appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+-+        appProps.put("storageBucket", appOptions.getStorageBucket());
+-+
+-+        appMapsList.add(appProps);
+-+      }
+-+    } catch (Exception e) {
+-+      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+-+      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+-     }
+- 
+-     constants.put("apps", appMapsList);
+-diff --git a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+-index 90fdb1d..92ac092 100644
+---- a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+-+++ b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+-@@ -187,8 +187,10 @@ - (void)messaging:(nonnull FIRMessaging *)messaging
+- }
+- 
+- RCT_EXPORT_METHOD(registerForRemoteNotifications:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+--    [RCTSharedApplication() registerForRemoteNotifications];
+--    resolve(nil);
+-+    dispatch_async(dispatch_get_main_queue(), ^{
+-+        [RCTSharedApplication() registerForRemoteNotifications];
+-+        resolve(nil);
+-+    });
+- }
+- 
+- // Non Web SDK methods
+-diff --git a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-index d3aa1e3..b35e7c2 100644
+---- a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-+++ b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-@@ -102,17 +102,19 @@ - (void)didReceiveLocalNotification:(nonnull UILocalNotification *)localNotifica
+- 
+- RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchResult)fetchResult) {
+-     if (handlerKey != nil) {
+--        void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+--        if (fetchCompletionHandler != nil) {
+--            fetchCompletionHandlers[handlerKey] = nil;
+--            fetchCompletionHandler(fetchResult);
+--        } else {
+--            void(^completionHandler)(void) = completionHandlers[handlerKey];
+--            if (completionHandler != nil) {
+--                completionHandlers[handlerKey] = nil;
+--                completionHandler();
+-+        dispatch_async(dispatch_get_main_queue(), ^{
+-+            void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+-+            if (fetchCompletionHandler != nil) {
+-+                fetchCompletionHandlers[handlerKey] = nil;
+-+                fetchCompletionHandler(fetchResult);
+-+            } else {
+-+                void(^completionHandler)(void) = completionHandlers[handlerKey];
+-+                if (completionHandler != nil) {
+-+                    completionHandlers[handlerKey] = nil;
+-+                    completionHandler();
+-+                }
+-             }
+--        }
+-+        });
+-     }
+- }
+- 
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+deleted file mode 100644
+index e05f069..0000000
+--- a/patches/react-native-image-picker+2.3.4.patch
++++ /dev/null
+@@ -1,16 +0,0 @@
+-diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-index aa7641c..a12f055 100644
+---- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-+++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-@@ -216,6 +216,11 @@ public class MediaUtils
+-             scaledPhoto.recycle();
+-             scaledPhoto = null;
+-         }
+-+        if (imageConfig.original.getAbsolutePath() != null)
+-+        {
+-+            new File(imageConfig.original.getAbsolutePath()).delete();
+-+        }
+-+
+-         return result;
+-     }
+- 

@@ -1,0 +1,706 @@
+diff --git a/.github/workflows/android-build-custom-dev-app.yml b/.github/workflows/android-build-custom-dev-app.yml
+index 35c7726..4fcffda 100644
+--- a/.github/workflows/android-build-custom-dev-app.yml
++++ b/.github/workflows/android-build-custom-dev-app.yml
+@@ -1,8 +1,10 @@
+-name: Android Custom Dev App CI
++name: '[Android] Custom Dev App CI'
+ 
+ on:
++  schedule: 
++    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [ master ]
++    branches: [master, release/*]
+ 
+ jobs:     
+   build:
+diff --git a/.github/workflows/ios-build-custom-dev-app.yml b/.github/workflows/ios-build-custom-dev-app.yml
+index 790245d..5717a36 100644
+--- a/.github/workflows/ios-build-custom-dev-app.yml
++++ b/.github/workflows/ios-build-custom-dev-app.yml
+@@ -1,8 +1,10 @@
+-name: IOS Custom Dev App CI
++name: '[iOS] Custom Dev App CI'
+ 
+ on:
++  schedule: 
++    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master]
++    branches: [master, release/*]
+ 
+ jobs:
+   build:
+diff --git a/.github/workflows/windows-test-npm-installation.yml b/.github/workflows/windows-test-npm-installation.yml
+new file mode 100644
+index 0000000..a3760cd
+--- /dev/null
++++ b/.github/workflows/windows-test-npm-installation.yml
+@@ -0,0 +1,19 @@
++name: '[Windows] Test npm installation'
++
++on:
++  schedule: 
++    - cron: '0 0 * * *'
++  pull_request:
++    branches: [master, release/*]
++
++jobs:
++  build:
++    runs-on: windows-latest
++
++    steps:
++      - uses: actions/checkout@v2
++      - uses: actions/setup-node@v2
++        with:
++          node-version: '14'
++          architecture: 'x64'
++      - run: npm install
+\ No newline at end of file
+diff --git a/android/app/src/dev/AndroidManifest.xml b/android/app/src/dev/AndroidManifest.xml
+index 074b971..be7074e 100644
+--- a/android/app/src/dev/AndroidManifest.xml
++++ b/android/app/src/dev/AndroidManifest.xml
+@@ -15,6 +15,6 @@
+             android:name="com.mendix.mendixnative.activity.MendixReactActivity"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+             android:launchMode="singleTop"
+-            android:windowSoftInputMode="adjustResize"></activity>
++            android:windowSoftInputMode="adjustPan"></activity>
+     </application>
+ </manifest>
+diff --git a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+index 56cf74e..8d64761 100644
+--- a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+ 
+         // This check is required for deep link to work.
+         // Changes here will affect deep linking functionality
+-        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) == null) {
++        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) != null) {
+             launchApp(appPreferences.getAppUrl());
+         }
+     }
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 8acb126..a1efd74 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -35,7 +35,7 @@
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustResize">
++        android:windowSoftInputMode="adjustPan">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/appcenter-build-config.json b/appcenter-build-config.json
+index 81944a7..2441cbb 100644
+--- a/appcenter-build-config.json
++++ b/appcenter-build-config.json
+@@ -3,7 +3,11 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
++    "environmentVariables": [
++      { "name": "CODE_PUSH_KEY", "value": "" },
++      { "name": "IS_DEV_APP", "value": false },
++      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
++    ],
+     "toolsets": {
+       "xcode": {
+         "xcodeVersion": "12.0",
+@@ -29,7 +33,11 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
++    "environmentVariables": [
++      { "name": "CODE_PUSH_KEY", "value": "" },
++      { "name": "IS_DEV_APP", "value": false },
++      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
++    ],
+     "toolsets": {
+       "android": {
+         "module": "app",
+diff --git a/appcenter-post-clone.sh b/appcenter-post-clone.sh
+index 61fe2dd..b827ca0 100755
+--- a/appcenter-post-clone.sh
++++ b/appcenter-post-clone.sh
+@@ -1,4 +1,5 @@
+ #!/usr/bin/env bash
++set -e
+ 
+ # Untar bundle resources
+ if [ -f "./android/res.tar.gz" ]; then 
+diff --git a/appcenter-pre-build.sh b/appcenter-pre-build.sh
+index 76e4a44..87a1d40 100755
+--- a/appcenter-pre-build.sh
++++ b/appcenter-pre-build.sh
+@@ -1,4 +1,10 @@
+ #!/usr/bin/env bash
++set -e
++
++if [[ $SUPPORTS_MOBILE_TOOLKIT == True ]]; then
++    echo "Configuring template with mobile toolkit"
++    npm run configure
++fi
+ 
+ INFO_PLIST=$APPCENTER_SOURCE_DIRECTORY/ios/$APPCENTER_XCODE_SCHEME/Info.plist
+ if [[ -e "$INFO_PLIST" && $IS_DEV_APP == False ]]; then
+diff --git a/ios/Config/config.xcconfig b/ios/Config/config.xcconfig
+index d9e8867..7adddb7 100644
+--- a/ios/Config/config.xcconfig
++++ b/ios/Config/config.xcconfig
+@@ -4,3 +4,5 @@ BUNDLE_DISPLAY_NAME = NativeTemplate
+ BUNDLE_IDENTIFIER = com.mendix.native.template
+ 
+ RUNTIME_URL = http:\/\/localhost:8080
++
++PRODUCT_NAME = nativeTemplate
+diff --git a/ios/Dev/Config/config.xcconfig b/ios/Dev/Config/config.xcconfig
+index 1766679..bab3094 100644
+--- a/ios/Dev/Config/config.xcconfig
++++ b/ios/Dev/Config/config.xcconfig
+@@ -3,3 +3,5 @@
+ MAIN_STORY_BOARD = LaunchApp
+ BUNDLE_DISPLAY_NAME = Dev - NativeTemplate
+ BUNDLE_IDENTIFIER_APPEND = .developerapp
++
++PRODUCT_NAME = NativeTemplateDev
+diff --git a/ios/Podfile.lock b/ios/Podfile.lock
+index 12a98ca..bbea556 100644
+--- a/ios/Podfile.lock
++++ b/ios/Podfile.lock
+@@ -18,34 +18,54 @@ PODS:
+     - React-Core (= 0.61.5)
+     - React-jsi (= 0.61.5)
+     - ReactCommon/turbomodule/core (= 0.61.5)
+-  - Firebase/Core (7.1.0):
++  - Firebase/Core (6.19.0):
+     - Firebase/CoreOnly
+-    - FirebaseAnalytics (= 7.1.0)
+-  - Firebase/CoreOnly (7.1.0):
+-    - FirebaseCore (= 7.1.0)
+-  - FirebaseAnalytics (7.1.0):
+-    - FirebaseCore (~> 7.0)
+-    - FirebaseInstallations (~> 7.0)
+-    - GoogleAppMeasurement (= 7.1.0)
+-    - GoogleUtilities/AppDelegateSwizzler (~> 7.0)
+-    - GoogleUtilities/MethodSwizzler (~> 7.0)
+-    - GoogleUtilities/Network (~> 7.0)
+-    - "GoogleUtilities/NSData+zlib (~> 7.0)"
+-    - nanopb (~> 2.30906.0)
+-  - FirebaseCore (7.1.0):
+-    - FirebaseCoreDiagnostics (~> 7.0)
+-    - GoogleUtilities/Environment (~> 7.0)
+-    - GoogleUtilities/Logger (~> 7.0)
+-  - FirebaseCoreDiagnostics (7.1.0):
+-    - GoogleDataTransport (~> 8.0)
+-    - GoogleUtilities/Environment (~> 7.0)
+-    - GoogleUtilities/Logger (~> 7.0)
+-    - nanopb (~> 2.30906.0)
+-  - FirebaseInstallations (7.1.0):
+-    - FirebaseCore (~> 7.0)
+-    - GoogleUtilities/Environment (~> 7.0)
+-    - GoogleUtilities/UserDefaults (~> 7.0)
++    - FirebaseAnalytics (= 6.3.1)
++  - Firebase/CoreOnly (6.19.0):
++    - FirebaseCore (= 6.6.4)
++  - Firebase/Messaging (6.19.0):
++    - Firebase/CoreOnly
++    - FirebaseMessaging (~> 4.3.0)
++  - FirebaseAnalytics (6.3.1):
++    - FirebaseCore (~> 6.6)
++    - FirebaseInstallations (~> 1.1)
++    - GoogleAppMeasurement (= 6.3.1)
++    - GoogleUtilities/AppDelegateSwizzler (~> 6.0)
++    - GoogleUtilities/MethodSwizzler (~> 6.0)
++    - GoogleUtilities/Network (~> 6.0)
++    - "GoogleUtilities/NSData+zlib (~> 6.0)"
++    - nanopb (= 0.3.9011)
++  - FirebaseAnalyticsInterop (1.5.0)
++  - FirebaseCore (6.6.4):
++    - FirebaseCoreDiagnostics (~> 1.2)
++    - FirebaseCoreDiagnosticsInterop (~> 1.2)
++    - GoogleUtilities/Environment (~> 6.5)
++    - GoogleUtilities/Logger (~> 6.5)
++  - FirebaseCoreDiagnostics (1.2.4):
++    - FirebaseCoreDiagnosticsInterop (~> 1.2)
++    - GoogleDataTransportCCTSupport (~> 3.0)
++    - GoogleUtilities/Environment (~> 6.5)
++    - GoogleUtilities/Logger (~> 6.5)
++    - nanopb (~> 0.3.901)
++  - FirebaseCoreDiagnosticsInterop (1.2.0)
++  - FirebaseInstallations (1.1.1):
++    - FirebaseCore (~> 6.6)
++    - GoogleUtilities/UserDefaults (~> 6.5)
+     - PromisesObjC (~> 1.2)
++  - FirebaseInstanceID (4.3.4):
++    - FirebaseCore (~> 6.6)
++    - FirebaseInstallations (~> 1.0)
++    - GoogleUtilities/Environment (~> 6.5)
++    - GoogleUtilities/UserDefaults (~> 6.5)
++  - FirebaseMessaging (4.3.1):
++    - FirebaseAnalyticsInterop (~> 1.5)
++    - FirebaseCore (~> 6.6)
++    - FirebaseInstanceID (~> 4.3)
++    - GoogleUtilities/AppDelegateSwizzler (~> 6.5)
++    - GoogleUtilities/Environment (~> 6.5)
++    - GoogleUtilities/Reachability (~> 6.5)
++    - GoogleUtilities/UserDefaults (~> 6.5)
++    - Protobuf (>= 3.9.2, ~> 3.9)
+   - Folly (2018.10.22.00):
+     - boost-for-react-native
+     - DoubleConversion
+@@ -72,37 +92,52 @@ PODS:
+     - GoogleMaps
+   - Google-Maps-iOS-Utils/QuadTree (2.1.0):
+     - GoogleMaps
+-  - GoogleAppMeasurement (7.1.0):
+-    - GoogleUtilities/AppDelegateSwizzler (~> 7.0)
+-    - GoogleUtilities/MethodSwizzler (~> 7.0)
+-    - GoogleUtilities/Network (~> 7.0)
+-    - "GoogleUtilities/NSData+zlib (~> 7.0)"
+-    - nanopb (~> 2.30906.0)
+-  - GoogleDataTransport (8.0.1):
+-    - nanopb (~> 2.30906.0)
++  - GoogleAppMeasurement (6.3.1):
++    - GoogleUtilities/AppDelegateSwizzler (~> 6.0)
++    - GoogleUtilities/MethodSwizzler (~> 6.0)
++    - GoogleUtilities/Network (~> 6.0)
++    - "GoogleUtilities/NSData+zlib (~> 6.0)"
++    - nanopb (= 0.3.9011)
++  - GoogleDataTransport (6.2.1)
++  - GoogleDataTransportCCTSupport (3.0.0):
++    - GoogleDataTransport (~> 6.0)
++    - nanopb (~> 0.3.901)
+   - GoogleMaps (3.5.0):
+     - GoogleMaps/Maps (= 3.5.0)
+   - GoogleMaps/Base (3.5.0)
+   - GoogleMaps/Maps (3.5.0):
+     - GoogleMaps/Base
+-  - GoogleUtilities/AppDelegateSwizzler (7.1.1):
++  - GoogleUtilities (6.5.2):
++    - GoogleUtilities/AppDelegateSwizzler (= 6.5.2)
++    - GoogleUtilities/Environment (= 6.5.2)
++    - GoogleUtilities/ISASwizzler (= 6.5.2)
++    - GoogleUtilities/Logger (= 6.5.2)
++    - GoogleUtilities/MethodSwizzler (= 6.5.2)
++    - GoogleUtilities/Network (= 6.5.2)
++    - "GoogleUtilities/NSData+zlib (= 6.5.2)"
++    - GoogleUtilities/Reachability (= 6.5.2)
++    - GoogleUtilities/SwizzlerTestHelpers (= 6.5.2)
++    - GoogleUtilities/UserDefaults (= 6.5.2)
++  - GoogleUtilities/AppDelegateSwizzler (6.5.2):
+     - GoogleUtilities/Environment
+     - GoogleUtilities/Logger
+     - GoogleUtilities/Network
+-  - GoogleUtilities/Environment (7.1.1):
+-    - PromisesObjC (~> 1.2)
+-  - GoogleUtilities/Logger (7.1.1):
++  - GoogleUtilities/Environment (6.5.2)
++  - GoogleUtilities/ISASwizzler (6.5.2)
++  - GoogleUtilities/Logger (6.5.2):
+     - GoogleUtilities/Environment
+-  - GoogleUtilities/MethodSwizzler (7.1.1):
++  - GoogleUtilities/MethodSwizzler (6.5.2):
+     - GoogleUtilities/Logger
+-  - GoogleUtilities/Network (7.1.1):
++  - GoogleUtilities/Network (6.5.2):
+     - GoogleUtilities/Logger
+     - "GoogleUtilities/NSData+zlib"
+     - GoogleUtilities/Reachability
+-  - "GoogleUtilities/NSData+zlib (7.1.1)"
+-  - GoogleUtilities/Reachability (7.1.1):
++  - "GoogleUtilities/NSData+zlib (6.5.2)"
++  - GoogleUtilities/Reachability (6.5.2):
+     - GoogleUtilities/Logger
+-  - GoogleUtilities/UserDefaults (7.1.1):
++  - GoogleUtilities/SwizzlerTestHelpers (6.5.2):
++    - GoogleUtilities/MethodSwizzler
++  - GoogleUtilities/UserDefaults (6.5.2):
+     - GoogleUtilities/Logger
+   - IQKeyboardManager (6.5.6)
+   - JWT (3.0.0-beta.12):
+@@ -116,12 +151,13 @@ PODS:
+   - libwebp/mux (1.1.0):
+     - libwebp/demux
+   - libwebp/webp (1.1.0)
+-  - nanopb (2.30906.0):
+-    - nanopb/decode (= 2.30906.0)
+-    - nanopb/encode (= 2.30906.0)
+-  - nanopb/decode (2.30906.0)
+-  - nanopb/encode (2.30906.0)
++  - nanopb (0.3.9011):
++    - nanopb/decode (= 0.3.9011)
++    - nanopb/encode (= 0.3.9011)
++  - nanopb/decode (0.3.9011)
++  - nanopb/encode (0.3.9011)
+   - PromisesObjC (1.2.11)
++  - Protobuf (3.13.0)
+   - RCTRequired (0.61.5)
+   - RCTTypeSafety (0.61.5):
+     - FBLazyVector (= 0.61.5)
+@@ -423,10 +459,13 @@ DEPENDENCIES:
+   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
+   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
+   - FBReactNativeSpec (from `../node_modules/react-native/Libraries/FBReactNativeSpec`)
++  - Firebase/Core (~> 6.19.0)
++  - Firebase/Messaging (~> 6.19.0)
+   - Folly (from `../node_modules/react-native/third-party-podspecs/Folly.podspec`)
+   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
+   - Google-Maps-iOS-Utils
+   - GoogleMaps
++  - GoogleUtilities (~> 6.5.1)
+   - IQKeyboardManager
+   - RCTRequired (from `../node_modules/react-native/Libraries/RCTRequired`)
+   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
+@@ -493,12 +532,17 @@ SPEC REPOS:
+     - Fabric
+     - Firebase
+     - FirebaseAnalytics
++    - FirebaseAnalyticsInterop
+     - FirebaseCore
+     - FirebaseCoreDiagnostics
++    - FirebaseCoreDiagnosticsInterop
+     - FirebaseInstallations
++    - FirebaseInstanceID
++    - FirebaseMessaging
+     - Google-Maps-iOS-Utils
+     - GoogleAppMeasurement
+     - GoogleDataTransport
++    - GoogleDataTransportCCTSupport
+     - GoogleMaps
+     - GoogleUtilities
+     - IQKeyboardManager
+@@ -506,6 +550,7 @@ SPEC REPOS:
+     - libwebp
+     - nanopb
+     - PromisesObjC
++    - Protobuf
+     - SDWebImage
+     - SDWebImageWebPCoder
+     - SSZipArchive
+@@ -639,23 +684,29 @@ SPEC CHECKSUMS:
+   Fabric: ea977e3cd9c20425516d3dafd3bf8c941c51223f
+   FBLazyVector: aaeaf388755e4f29cd74acbc9e3b8da6d807c37f
+   FBReactNativeSpec: 118d0d177724c2d67f08a59136eb29ef5943ec75
+-  Firebase: 78e8dd2e39d653de6270432ad84fe8b59f7bf4e8
+-  FirebaseAnalytics: 7f165a56dea86ddd5b8ce02af3bee982c683405c
+-  FirebaseCore: 20046127eef0fcb8fa25df7fc12f7b97d4e48611
+-  FirebaseCoreDiagnostics: 872cdb9b749b23346dddd5c1014d1babd2257de3
+-  FirebaseInstallations: 3de38553e86171b5f81d83cdeef63473d37bfdb0
++  Firebase: d55ddb0e0bb3207166cddc028647833d8a1b5b6f
++  FirebaseAnalytics: 572e467f3d977825266e8ccd52674aa3e6f47eac
++  FirebaseAnalyticsInterop: 3f86269c38ae41f47afeb43ebf32a001f58fcdae
++  FirebaseCore: ed0a24c758a57c2b88c5efa8e6a8195e868af589
++  FirebaseCoreDiagnostics: b59c024493a409f8aecba02c99928d0d8431d159
++  FirebaseCoreDiagnosticsInterop: 296e2c5f5314500a850ad0b83e9e7c10b011a850
++  FirebaseInstallations: acb3216eb9784d3b1d2d2d635ff74fa892cc0c44
++  FirebaseInstanceID: cef67c4967c7cecb56ea65d8acbb4834825c587b
++  FirebaseMessaging: 828e66eb357a893e3cebd9ee0f6bc1941447cc94
+   Folly: 30e7936e1c45c08d884aa59369ed951a8e68cf51
+   glog: 1f3da668190260b06b429bb211bfbee5cd790c28
+   Google-Maps-iOS-Utils: c32891ff472eaaa1fca032beedafa1a013af7875
+-  GoogleAppMeasurement: 89e1a64593f968713b0506ba1b53b38a154bf9a5
+-  GoogleDataTransport: e4085e6762f36a6141738f46b0153473ce57fb18
++  GoogleAppMeasurement: c29d405ff76e18551b5d158eaba6753fda8c7542
++  GoogleDataTransport: 9a8a16f79feffc7f42096743de2a7c4815e84020
++  GoogleDataTransportCCTSupport: 0f39025e8cf51f168711bd3fb773938d7e62ddb5
+   GoogleMaps: 32ca02de09de357a10ac773f2c70f1986751392d
+-  GoogleUtilities: 3dc4ff0d5e4840e2fa8eef0889620e8c33d4218c
++  GoogleUtilities: ad0f3b691c67909d03a3327cc205222ab8f42e0e
+   IQKeyboardManager: 2a6e97afdafc7becf0cb17a9a8d795e3a980717f
+   JWT: 9b5c05abbcc1a0e69c3c91e1655b3387fc7e581d
+   libwebp: 946cb3063cea9236285f7e9a8505d806d30e07f3
+-  nanopb: 1bf24dd71191072e120b83dd02d08f3da0d65e53
++  nanopb: 18003b5e52dab79db540fe93fe9579f399bd1ccd
+   PromisesObjC: 8c196f5a328c2cba3e74624585467a557dcb482f
++  Protobuf: 3dac39b34a08151c6d949560efe3f86134a3f748
+   RCTRequired: b153add4da6e7dbc44aebf93f3cf4fcae392ddf1
+   RCTTypeSafety: 9aa1b91d7f9310fc6eadc3cf95126ffe818af320
+   React: b6a59ef847b2b40bb6e0180a97d0ca716969ac78
+@@ -715,4 +766,4 @@ SPEC CHECKSUMS:
+ 
+ PODFILE CHECKSUM: 907c29c4504ccf424d696b27015e7d1f356cb212
+ 
+-COCOAPODS: 1.9.1
++COCOAPODS: 1.10.0
+diff --git a/ios/nativeTemplate.xcodeproj/project.pbxproj b/ios/nativeTemplate.xcodeproj/project.pbxproj
+index 7deeabf..b789257 100644
+--- a/ios/nativeTemplate.xcodeproj/project.pbxproj
++++ b/ios/nativeTemplate.xcodeproj/project.pbxproj
+@@ -682,7 +682,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = nativeTemplate;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+@@ -756,7 +756,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = nativeTemplate;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -803,7 +803,7 @@
+ 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = NativeTemplateDev;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -851,7 +851,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = NativeTemplateDev;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+@@ -971,7 +971,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = nativeTemplate;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -1018,7 +1018,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = NativeTemplateDev;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+diff --git a/package-lock.json b/package-lock.json
+index 8eca342..6952d6b 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.2",
++  "version": "5.1.9",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -13364,9 +13364,9 @@
+       }
+     },
+     "react-native-image-picker": {
+-      "version": "2.3.1",
+-      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.1.tgz",
+-      "integrity": "sha512-c/a2h7/T7yBo5KlNQhcSn4xf4+6Li6LfJ59+GZT1ZzzWrj/6X8DiJ/TJBOlOZMC5tJriZKuRkWSsr74k6z+brw=="
++      "version": "2.3.4",
++      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.4.tgz",
++      "integrity": "sha512-4UHu+zOyDT570r5mIbjH6h1iMrKIq/qfsKiAVUEZwncVegh0usJiEYNyJw4CEVwNeehmye/ia5sLDsa+kzIE4g=="
+     },
+     "react-native-inappbrowser-reborn": {
+       "version": "3.3.4",
+diff --git a/package.json b/package.json
+index 44da1ba..1ee21e4 100644
+--- a/package.json
++++ b/package.json
+@@ -1,9 +1,13 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.2",
++  "version": "5.1.9",
++  "mendix": {
++    "templateVersion": "5.1.8"
++  },
+   "private": true,
+   "scripts": {
+-    "postinstall": "npx patch-package && npx jetify"
++    "postinstall": "patch-package && jetify",
++    "configure": "native-mobile-toolkit configure --config-path='./config.json' --verbose"
+   },
+   "dependencies": {
+     "@react-native-community/art": "1.2.0",
+@@ -26,7 +30,7 @@
+     "react-native-firebase": "5.6.0",
+     "react-native-geocoder": "0.5.0",
+     "react-native-gesture-handler": "1.6.0",
+-    "react-native-image-picker": "2.3.1",
++    "react-native-image-picker": "2.3.4",
+     "react-native-inappbrowser-reborn": "3.3.4",
+     "react-native-localize": "1.3.4",
+     "react-native-maps": "0.27.0",
+@@ -45,6 +49,7 @@
+   "devDependencies": {
+     "@babel/core": "^7.5.4",
+     "@babel/runtime": "^7.5.4",
++    "@mendix/native-mobile-toolkit": "latest",
+     "babel-jest": "^25.2.6",
+     "detox": "17.6.1",
+     "jest": "^25.2.7",
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+new file mode 100644
+index 0000000..addcda4
+--- /dev/null
++++ b/patches/react-native-firebase+5.6.0.patch
+@@ -0,0 +1,107 @@
++diff --git a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
++index 24f472e..085f926 100644
++--- a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+++++ b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
++@@ -155,24 +155,33 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
++   public Map<String, Object> getConstants() {
++     Map<String, Object> constants = new HashMap<>();
++     List<Map<String, Object>> appMapsList = new ArrayList<>();
++-    List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
++-
++-    // TODO no way to get client id currently from app options - firebase sdk issue
++-    for (FirebaseApp app : firebaseAppList) {
++-      String appName = app.getName();
++-      FirebaseOptions appOptions = app.getOptions();
++-      Map<String, Object> appProps = new HashMap<>();
++-
++-      appProps.put("name", appName);
++-      appProps.put("apiKey", appOptions.getApiKey());
++-      appProps.put("appId", appOptions.getApplicationId());
++-      appProps.put("projectId", appOptions.getProjectId());
++-      appProps.put("projectId", appOptions.getProjectId());
++-      appProps.put("databaseURL", appOptions.getDatabaseUrl());
++-      appProps.put("messagingSenderId", appOptions.getGcmSenderId());
++-      appProps.put("storageBucket", appOptions.getStorageBucket());
++-
++-      appMapsList.add(appProps);
+++
+++    try {
+++      List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+++
+++      // TODO no way to get client id currently from app options - firebase sdk issue
+++      for (FirebaseApp app : firebaseAppList) {
+++        String appName = app.getName();
+++        FirebaseOptions appOptions = app.getOptions();
+++        Map<String, Object> appProps = new HashMap<>();
+++
+++        appProps.put("name", appName);
+++        appProps.put("apiKey", appOptions.getApiKey());
+++        appProps.put("appId", appOptions.getApplicationId());
+++        appProps.put("projectId", appOptions.getProjectId());
+++        appProps.put("projectId", appOptions.getProjectId());
+++        appProps.put("databaseURL", appOptions.getDatabaseUrl());
+++        appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+++        appProps.put("storageBucket", appOptions.getStorageBucket());
+++
+++        appMapsList.add(appProps);
+++      }
+++    } catch (Exception e) {
+++      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+++      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+++    } catch (NoClassDefFoundError e) {
+++      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+++      Log.e("RNFirebaseModule", e.getLocalizedMessage());
++     }
++ 
++     constants.put("apps", appMapsList);
++diff --git a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
++index 90fdb1d..92ac092 100644
++--- a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+++++ b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
++@@ -187,8 +187,10 @@ - (void)messaging:(nonnull FIRMessaging *)messaging
++ }
++ 
++ RCT_EXPORT_METHOD(registerForRemoteNotifications:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
++-    [RCTSharedApplication() registerForRemoteNotifications];
++-    resolve(nil);
+++    dispatch_async(dispatch_get_main_queue(), ^{
+++        [RCTSharedApplication() registerForRemoteNotifications];
+++        resolve(nil);
+++    });
++ }
++ 
++ // Non Web SDK methods
++diff --git a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
++index d3aa1e3..b35e7c2 100644
++--- a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+++++ b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
++@@ -102,17 +102,19 @@ - (void)didReceiveLocalNotification:(nonnull UILocalNotification *)localNotifica
++ 
++ RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchResult)fetchResult) {
++     if (handlerKey != nil) {
++-        void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
++-        if (fetchCompletionHandler != nil) {
++-            fetchCompletionHandlers[handlerKey] = nil;
++-            fetchCompletionHandler(fetchResult);
++-        } else {
++-            void(^completionHandler)(void) = completionHandlers[handlerKey];
++-            if (completionHandler != nil) {
++-                completionHandlers[handlerKey] = nil;
++-                completionHandler();
+++        dispatch_async(dispatch_get_main_queue(), ^{
+++            void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+++            if (fetchCompletionHandler != nil) {
+++                fetchCompletionHandlers[handlerKey] = nil;
+++                fetchCompletionHandler(fetchResult);
+++            } else {
+++                void(^completionHandler)(void) = completionHandlers[handlerKey];
+++                if (completionHandler != nil) {
+++                    completionHandlers[handlerKey] = nil;
+++                    completionHandler();
+++                }
++             }
++-        }
+++        });
++     }
++ }
++ 
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+new file mode 100644
+index 0000000..e05f069
+--- /dev/null
++++ b/patches/react-native-image-picker+2.3.4.patch
+@@ -0,0 +1,16 @@
++diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++index aa7641c..a12f055 100644
++--- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+++++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++@@ -216,6 +216,11 @@ public class MediaUtils
++             scaledPhoto.recycle();
++             scaledPhoto = null;
++         }
+++        if (imageConfig.original.getAbsolutePath() != null)
+++        {
+++            new File(imageConfig.original.getAbsolutePath()).delete();
+++        }
+++
++         return result;
++     }
++ 
+diff --git a/react-native.config.js b/react-native.config.js
+index ea79fa9..e103df2 100644
+--- a/react-native.config.js
++++ b/react-native.config.js
+@@ -11,6 +11,13 @@ module.exports = {
+                 android: null,
+                 ios: null,
+             },
+-        }
++        },
++        'react-native-video': {
++            platforms: {
++              android: {
++                sourceDir: '../node_modules/react-native-video/android-exoplayer',
++              },
++            },
++        },
+     },
+ };

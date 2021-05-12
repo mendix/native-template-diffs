@@ -1,0 +1,133 @@
+diff --git a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+index 8d64761..8de4544 100644
+--- a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+@@ -42,8 +42,6 @@ import okhttp3.OkHttpClient;
+ import okhttp3.Request;
+ import okhttp3.Response;
+ 
+-import static com.mendix.mendixnative.activity.MendixReactActivity.MENDIX_APP_INTENT_KEY;
+-
+ public class MainActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
+     static private int CAMERA_REQUEST = 1;
+     private Executor httpExecutor = Executors.newSingleThreadExecutor();
+@@ -77,13 +75,17 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+         appUrl.setText(appPreferences.getAppUrl());
+         devModeCheckBox.setChecked(appPreferences.isDevModeEnabled());
+ 
+-        // This check is required for deep link to work.
+-        // Changes here will affect deep linking functionality
+-        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) != null) {
+-            launchApp(appPreferences.getAppUrl());
++        if (getIntent().getData() != null && getIntent().getAction() != null) {
++            this.launchApp(appPreferences.getAppUrl(), getIntent());
+         }
+     }
+ 
++    @Override
++    protected void onNewIntent(Intent intent) {
++        super.onNewIntent(intent);
++        this.launchApp(appPreferences.getAppUrl(), intent);
++    }
++
+     @RequiresApi(api = Build.VERSION_CODES.M)
+     @Override
+     protected void onResume() {
+@@ -103,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+         try {
+             JSONObject json = new JSONObject(rawResult.getText());
+             String url = json.getString("url");
+-            launchApp(url);
++            launchApp(url, null);
+         } catch (JSONException e) {
+             Toast.makeText(MainActivity.this, R.string.qr_code_invalid, Toast.LENGTH_LONG).show();
+         }
+@@ -123,11 +125,11 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+         loaderView.setOnTouchListener((view, event) -> true);
+ 
+         appUrl.setOnEditorActionListener((view, actionId, keyEvent) -> {
+-            launchApp(appUrl.getText().toString());
++            launchApp(appUrl.getText().toString(), null);
+             return false;
+         });
+ 
+-        launchAppButton.setOnClickListener((view) -> launchApp(appUrl.getText().toString()));
++        launchAppButton.setOnClickListener((view) -> launchApp(appUrl.getText().toString(), null));
+     }
+ 
+     private void isPackagerRunning(String appUrl, Consumer<Boolean> result) {
+@@ -181,7 +183,7 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+         }
+     }
+ 
+-    private void launchApp(String url) {
++    private void launchApp(String url, Intent passedIntent) {
+         disableUIInteraction(true);
+         isPackagerRunning(url, (res) -> {
+             if (!res) {
+@@ -196,6 +198,17 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+             MendixApp mendixApp = new MendixApp(AppUrl.forRuntime(url), warningsFilter, devModeEnabled);
+             intent.putExtra(MendixReactActivity.MENDIX_APP_INTENT_KEY, mendixApp);
+             intent.putExtra(MendixReactActivity.CLEAR_DATA, clearData);
++
++            if (passedIntent != null) {
++                if (passedIntent.getData() != null) {
++                    intent.setData(passedIntent.getData());
++                }
++
++                if (passedIntent.getAction() != null) {
++                    intent.setAction(passedIntent.getAction());
++                }
++            }
++
+             startActivity(intent);
+             disableUIInteraction(false);
+         });
+diff --git a/appcenter-pre-build.sh b/appcenter-pre-build.sh
+index 87a1d40..00d94d8 100755
+--- a/appcenter-pre-build.sh
++++ b/appcenter-pre-build.sh
+@@ -10,12 +10,12 @@ INFO_PLIST=$APPCENTER_SOURCE_DIRECTORY/ios/$APPCENTER_XCODE_SCHEME/Info.plist
+ if [[ -e "$INFO_PLIST" && $IS_DEV_APP == False ]]; then
+     echo "Stripping unwanted MendixNative (i386, x86_64) archs"
+     LIB_PATH=$APPCENTER_SOURCE_DIRECTORY/ios/MendixNative/libMendix.a
+-    lipo -remove x86_64 -output $LIB_PATH $LIB_PATH
+-    lipo -remove i386 -output $LIB_PATH $LIB_PATH
+-    lipo -info $LIB_PATH
++    lipo -remove x86_64 -output $LIB_PATH $LIB_PATH || true
++    lipo -remove i386 -output $LIB_PATH $LIB_PATH || true
++    lipo -info $LIB_PATH || true
+ 
+     echo "Updating Info.plist with code push key"
+-    plutil -replace "CodePushKey" -string $CODE_PUSH_KEY $INFO_PLIST
++    plutil -replace "CodePushKey" -string $CODE_PUSH_KEY $INFO_PLIST || true
+ 
+     cat $INFO_PLIST
+ fi
+diff --git a/package-lock.json b/package-lock.json
+index 6952d6b..19284b9 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.9",
++  "version": "5.1.10",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index 1ee21e4..83e42e5 100644
+--- a/package.json
++++ b/package.json
+@@ -1,8 +1,8 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.9",
++  "version": "5.1.10",
+   "mendix": {
+-    "templateVersion": "5.1.8"
++    "templateVersion": "5.1.10"
+   },
+   "private": true,
+   "scripts": {

@@ -1,0 +1,139 @@
+diff --git a/appcenter-build-config.json b/appcenter-build-config.json
+index 81944a7..2441cbb 100644
+--- a/appcenter-build-config.json
++++ b/appcenter-build-config.json
+@@ -3,7 +3,11 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
++    "environmentVariables": [
++      { "name": "CODE_PUSH_KEY", "value": "" },
++      { "name": "IS_DEV_APP", "value": false },
++      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
++    ],
+     "toolsets": {
+       "xcode": {
+         "xcodeVersion": "12.0",
+@@ -29,7 +33,11 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
++    "environmentVariables": [
++      { "name": "CODE_PUSH_KEY", "value": "" },
++      { "name": "IS_DEV_APP", "value": false },
++      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
++    ],
+     "toolsets": {
+       "android": {
+         "module": "app",
+diff --git a/appcenter-post-clone.sh b/appcenter-post-clone.sh
+index 61fe2dd..b827ca0 100755
+--- a/appcenter-post-clone.sh
++++ b/appcenter-post-clone.sh
+@@ -1,4 +1,5 @@
+ #!/usr/bin/env bash
++set -e
+ 
+ # Untar bundle resources
+ if [ -f "./android/res.tar.gz" ]; then 
+diff --git a/appcenter-pre-build.sh b/appcenter-pre-build.sh
+index 76e4a44..87a1d40 100755
+--- a/appcenter-pre-build.sh
++++ b/appcenter-pre-build.sh
+@@ -1,4 +1,10 @@
+ #!/usr/bin/env bash
++set -e
++
++if [[ $SUPPORTS_MOBILE_TOOLKIT == True ]]; then
++    echo "Configuring template with mobile toolkit"
++    npm run configure
++fi
+ 
+ INFO_PLIST=$APPCENTER_SOURCE_DIRECTORY/ios/$APPCENTER_XCODE_SCHEME/Info.plist
+ if [[ -e "$INFO_PLIST" && $IS_DEV_APP == False ]]; then
+diff --git a/package-lock.json b/package-lock.json
+index 662f98b..6952d6b 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.8",
++  "version": "5.1.9",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index c5941f5..1ee21e4 100644
+--- a/package.json
++++ b/package.json
+@@ -1,9 +1,13 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.8",
++  "version": "5.1.9",
++  "mendix": {
++    "templateVersion": "5.1.8"
++  },
+   "private": true,
+   "scripts": {
+-    "postinstall": "patch-package && jetify"
++    "postinstall": "patch-package && jetify",
++    "configure": "native-mobile-toolkit configure --config-path='./config.json' --verbose"
+   },
+   "dependencies": {
+     "@react-native-community/art": "1.2.0",
+@@ -45,6 +49,7 @@
+   "devDependencies": {
+     "@babel/core": "^7.5.4",
+     "@babel/runtime": "^7.5.4",
++    "@mendix/native-mobile-toolkit": "latest",
+     "babel-jest": "^25.2.6",
+     "detox": "17.6.1",
+     "jest": "^25.2.7",
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+index f2639bc..addcda4 100644
+--- a/patches/react-native-firebase+5.6.0.patch
++++ b/patches/react-native-firebase+5.6.0.patch
+@@ -1,8 +1,8 @@
+ diff --git a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-index 24f472e..f32911f 100644
++index 24f472e..085f926 100644
+ --- a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+ +++ b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-@@ -155,24 +155,30 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
++@@ -155,24 +155,33 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
+    public Map<String, Object> getConstants() {
+      Map<String, Object> constants = new HashMap<>();
+      List<Map<String, Object>> appMapsList = new ArrayList<>();
+@@ -47,6 +47,9 @@ index 24f472e..f32911f 100644
+ +      }
+ +    } catch (Exception e) {
+ +      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+++      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+++    } catch (NoClassDefFoundError e) {
+++      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+ +      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+      }
+  
+diff --git a/react-native.config.js b/react-native.config.js
+index ea79fa9..e103df2 100644
+--- a/react-native.config.js
++++ b/react-native.config.js
+@@ -11,6 +11,13 @@ module.exports = {
+                 android: null,
+                 ios: null,
+             },
+-        }
++        },
++        'react-native-video': {
++            platforms: {
++              android: {
++                sourceDir: '../node_modules/react-native-video/android-exoplayer',
++              },
++            },
++        },
+     },
+ };

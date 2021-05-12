@@ -1,0 +1,51 @@
+diff --git a/appcenter-pre-build.sh b/appcenter-pre-build.sh
+index e963069..87a1d40 100755
+--- a/appcenter-pre-build.sh
++++ b/appcenter-pre-build.sh
+@@ -1,4 +1,5 @@
+ #!/usr/bin/env bash
++set -e
+ 
+ if [[ $SUPPORTS_MOBILE_TOOLKIT == True ]]; then
+     echo "Configuring template with mobile toolkit"
+@@ -9,12 +10,12 @@ INFO_PLIST=$APPCENTER_SOURCE_DIRECTORY/ios/$APPCENTER_XCODE_SCHEME/Info.plist
+ if [[ -e "$INFO_PLIST" && $IS_DEV_APP == False ]]; then
+     echo "Stripping unwanted MendixNative (i386, x86_64) archs"
+     LIB_PATH=$APPCENTER_SOURCE_DIRECTORY/ios/MendixNative/libMendix.a
+-    lipo -remove x86_64 -output $LIB_PATH $LIB_PATH || true
+-    lipo -remove i386 -output $LIB_PATH $LIB_PATH || true
+-    lipo -info $LIB_PATH || true
++    lipo -remove x86_64 -output $LIB_PATH $LIB_PATH
++    lipo -remove i386 -output $LIB_PATH $LIB_PATH
++    lipo -info $LIB_PATH
+ 
+     echo "Updating Info.plist with code push key"
+-    plutil -replace "CodePushKey" -string $CODE_PUSH_KEY $INFO_PLIST || true
++    plutil -replace "CodePushKey" -string $CODE_PUSH_KEY $INFO_PLIST
+ 
+     cat $INFO_PLIST
+ fi
+diff --git a/package-lock.json b/package-lock.json
+index 99f81f7..5fb727a 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "6.1.4",
++  "version": "6.1.3",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index be15c69..50cfb7e 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "6.1.4",
++  "version": "6.1.3",
+   "mendix": {
+     "templateVersion": "6.1.3"
+   },

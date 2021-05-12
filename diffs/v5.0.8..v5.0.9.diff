@@ -1,0 +1,71 @@
+diff --git a/android/app/src/dev/AndroidManifest.xml b/android/app/src/dev/AndroidManifest.xml
+index 074b971..be7074e 100644
+--- a/android/app/src/dev/AndroidManifest.xml
++++ b/android/app/src/dev/AndroidManifest.xml
+@@ -15,6 +15,6 @@
+             android:name="com.mendix.mendixnative.activity.MendixReactActivity"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+             android:launchMode="singleTop"
+-            android:windowSoftInputMode="adjustResize"></activity>
++            android:windowSoftInputMode="adjustPan"></activity>
+     </application>
+ </manifest>
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 8acb126..a1efd74 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -35,7 +35,7 @@
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustResize">
++        android:windowSoftInputMode="adjustPan">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/package-lock.json b/package-lock.json
+index 86c4da1..8452c35 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.7",
++  "version": "5.0.9",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index 391363c..1bc8614 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.7",
++  "version": "5.0.9",
+   "private": true,
+   "scripts": {
+     "postinstall": "npx patch-package && npx jetify"
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+new file mode 100644
+index 0000000..9d24528
+--- /dev/null
++++ b/patches/react-native-image-picker+2.3.4.patch
+@@ -0,0 +1,16 @@
++diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++index aa7641c..9438aea 100644
++--- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+++++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++@@ -216,6 +216,11 @@ public class MediaUtils
++             scaledPhoto.recycle();
++             scaledPhoto = null;
++         }
+++
+++        if(imageConfig.original.getAbsolutePath() != null){
+++            new File(imageConfig.original.getAbsolutePath()).delete();
+++        }
+++
++         return result;
++     }
++

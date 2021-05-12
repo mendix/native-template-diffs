@@ -1,0 +1,213 @@
+diff --git a/.github/workflows/android-build-custom-dev-app.yml b/.github/workflows/android-build-custom-dev-app.yml
+index 35c7726..4fcffda 100644
+--- a/.github/workflows/android-build-custom-dev-app.yml
++++ b/.github/workflows/android-build-custom-dev-app.yml
+@@ -1,8 +1,10 @@
+-name: Android Custom Dev App CI
++name: '[Android] Custom Dev App CI'
+ 
+ on:
++  schedule: 
++    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [ master ]
++    branches: [master, release/*]
+ 
+ jobs:     
+   build:
+diff --git a/.github/workflows/ios-build-custom-dev-app.yml b/.github/workflows/ios-build-custom-dev-app.yml
+index 790245d..5717a36 100644
+--- a/.github/workflows/ios-build-custom-dev-app.yml
++++ b/.github/workflows/ios-build-custom-dev-app.yml
+@@ -1,8 +1,10 @@
+-name: IOS Custom Dev App CI
++name: '[iOS] Custom Dev App CI'
+ 
+ on:
++  schedule: 
++    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master]
++    branches: [master, release/*]
+ 
+ jobs:
+   build:
+diff --git a/.github/workflows/windows-test-npm-installation.yml b/.github/workflows/windows-test-npm-installation.yml
+new file mode 100644
+index 0000000..a3760cd
+--- /dev/null
++++ b/.github/workflows/windows-test-npm-installation.yml
+@@ -0,0 +1,19 @@
++name: '[Windows] Test npm installation'
++
++on:
++  schedule: 
++    - cron: '0 0 * * *'
++  pull_request:
++    branches: [master, release/*]
++
++jobs:
++  build:
++    runs-on: windows-latest
++
++    steps:
++      - uses: actions/checkout@v2
++      - uses: actions/setup-node@v2
++        with:
++          node-version: '14'
++          architecture: 'x64'
++      - run: npm install
+\ No newline at end of file
+diff --git a/ios/Config/config.xcconfig b/ios/Config/config.xcconfig
+index d9e8867..7adddb7 100644
+--- a/ios/Config/config.xcconfig
++++ b/ios/Config/config.xcconfig
+@@ -4,3 +4,5 @@ BUNDLE_DISPLAY_NAME = NativeTemplate
+ BUNDLE_IDENTIFIER = com.mendix.native.template
+ 
+ RUNTIME_URL = http:\/\/localhost:8080
++
++PRODUCT_NAME = nativeTemplate
+diff --git a/ios/Dev/Config/config.xcconfig b/ios/Dev/Config/config.xcconfig
+index 1766679..bab3094 100644
+--- a/ios/Dev/Config/config.xcconfig
++++ b/ios/Dev/Config/config.xcconfig
+@@ -3,3 +3,5 @@
+ MAIN_STORY_BOARD = LaunchApp
+ BUNDLE_DISPLAY_NAME = Dev - NativeTemplate
+ BUNDLE_IDENTIFIER_APPEND = .developerapp
++
++PRODUCT_NAME = NativeTemplateDev
+diff --git a/ios/nativeTemplate.xcodeproj/project.pbxproj b/ios/nativeTemplate.xcodeproj/project.pbxproj
+index 7deeabf..b789257 100644
+--- a/ios/nativeTemplate.xcodeproj/project.pbxproj
++++ b/ios/nativeTemplate.xcodeproj/project.pbxproj
+@@ -682,7 +682,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = nativeTemplate;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+@@ -756,7 +756,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = nativeTemplate;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -803,7 +803,7 @@
+ 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = NativeTemplateDev;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -851,7 +851,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = NativeTemplateDev;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+@@ -971,7 +971,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = nativeTemplate;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -1018,7 +1018,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = NativeTemplateDev;
++				PRODUCT_NAME = "$(PRODUCT_NAME)";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+diff --git a/package-lock.json b/package-lock.json
+index 03b1618..8bec347 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.5",
++  "version": "5.1.6",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -13364,9 +13364,9 @@
+       }
+     },
+     "react-native-image-picker": {
+-      "version": "2.3.1",
+-      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.1.tgz",
+-      "integrity": "sha512-c/a2h7/T7yBo5KlNQhcSn4xf4+6Li6LfJ59+GZT1ZzzWrj/6X8DiJ/TJBOlOZMC5tJriZKuRkWSsr74k6z+brw=="
++      "version": "2.3.4",
++      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.4.tgz",
++      "integrity": "sha512-4UHu+zOyDT570r5mIbjH6h1iMrKIq/qfsKiAVUEZwncVegh0usJiEYNyJw4CEVwNeehmye/ia5sLDsa+kzIE4g=="
+     },
+     "react-native-inappbrowser-reborn": {
+       "version": "3.3.4",
+diff --git a/package.json b/package.json
+index e2ad5de..433ca0b 100644
+--- a/package.json
++++ b/package.json
+@@ -1,9 +1,9 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.5",
++  "version": "5.1.6",
+   "private": true,
+   "scripts": {
+-    "postinstall": "npx patch-package && npx jetify"
++    "postinstall": "patch-package && jetify"
+   },
+   "dependencies": {
+     "@react-native-community/art": "1.2.0",
+@@ -26,7 +26,7 @@
+     "react-native-firebase": "5.6.0",
+     "react-native-geocoder": "0.5.0",
+     "react-native-gesture-handler": "1.6.0",
+-    "react-native-image-picker": "2.3.1",
++    "react-native-image-picker": "2.3.4",
+     "react-native-inappbrowser-reborn": "3.3.4",
+     "react-native-localize": "1.3.4",
+     "react-native-maps": "0.27.0",
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+index 9d24528..e05f069 100644
+--- a/patches/react-native-image-picker+2.3.4.patch
++++ b/patches/react-native-image-picker+2.3.4.patch
+@@ -1,16 +1,16 @@
+ diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-index aa7641c..9438aea 100644
++index aa7641c..a12f055 100644
+ --- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+ +++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+ @@ -216,6 +216,11 @@ public class MediaUtils
+              scaledPhoto.recycle();
+              scaledPhoto = null;
+          }
+-+
+-+        if(imageConfig.original.getAbsolutePath() != null){
+++        if (imageConfig.original.getAbsolutePath() != null)
+++        {
+ +            new File(imageConfig.original.getAbsolutePath()).delete();
+ +        }
+ +
+          return result;
+      }
+-
++ 

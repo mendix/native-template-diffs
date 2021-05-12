@@ -1,0 +1,1535 @@
+diff --git a/.github/workflows/android-build-custom-dev-app.yml b/.github/workflows/android-build-custom-dev-app.yml
+index 4fcffda..35c7726 100644
+--- a/.github/workflows/android-build-custom-dev-app.yml
++++ b/.github/workflows/android-build-custom-dev-app.yml
+@@ -1,10 +1,8 @@
+-name: '[Android] Custom Dev App CI'
++name: Android Custom Dev App CI
+ 
+ on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master, release/*]
++    branches: [ master ]
+ 
+ jobs:     
+   build:
+diff --git a/.github/workflows/ios-build-custom-dev-app.yml b/.github/workflows/ios-build-custom-dev-app.yml
+index 5717a36..790245d 100644
+--- a/.github/workflows/ios-build-custom-dev-app.yml
++++ b/.github/workflows/ios-build-custom-dev-app.yml
+@@ -1,10 +1,8 @@
+-name: '[iOS] Custom Dev App CI'
++name: IOS Custom Dev App CI
+ 
+ on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master, release/*]
++    branches: [master]
+ 
+ jobs:
+   build:
+diff --git a/.github/workflows/windows-test-npm-installation.yml b/.github/workflows/windows-test-npm-installation.yml
+deleted file mode 100644
+index a3760cd..0000000
+--- a/.github/workflows/windows-test-npm-installation.yml
++++ /dev/null
+@@ -1,19 +0,0 @@
+-name: '[Windows] Test npm installation'
+-
+-on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+-  pull_request:
+-    branches: [master, release/*]
+-
+-jobs:
+-  build:
+-    runs-on: windows-latest
+-
+-    steps:
+-      - uses: actions/checkout@v2
+-      - uses: actions/setup-node@v2
+-        with:
+-          node-version: '14'
+-          architecture: 'x64'
+-      - run: npm install
+\ No newline at end of file
+diff --git a/.gitignore b/.gitignore
+index c006c72..a6a890c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -35,7 +35,6 @@ local.properties
+ # iOS
+ # 
+ ios/Pods/
+-ios/MendixAppDelegate.m
+ 
+ # node.js
+ #
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+index 54c3058..a824ec9 100644
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -100,10 +100,17 @@ project.ext.vectoricons = [
+ dependencies {
+     implementation project(':react-native-splash-screen')
+     implementation project(':react-native-code-push')
++    implementation project(":react-native-firebase")
+     implementation project(":mendixnative-release")
+     implementation fileTree(dir: "libs", include: ["*.jar"])
+     implementation "com.facebook.react:react-native:+"  // From node_modules
+     implementation "org.webkit:android-jsc:r245459"
++    if (googleServicesEnabled) {
++        implementation "com.google.android.gms:play-services-base:${project.playServicesVersion}"
++        implementation "com.google.firebase:firebase-core:17.2.3"
++        implementation "com.google.firebase:firebase-messaging:20.1.2"
++        implementation 'me.leolin:ShortcutBadger:1.1.22@aar'
++    }
+     devImplementation "androidx.constraintlayout:constraintlayout:2.0.0-beta2"
+     devImplementation "me.dm7.barcodescanner:zxing:1.9.13"
+ 
+@@ -128,14 +135,11 @@ task copyDownloadableDepsToLibs(type: Copy) {
+     into "libs"
+ }
+ 
+-apply from: file("../mendixnative-release/mendix.gradle"); applyMendixGradle(project)
+ apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+ apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+-
+-// Disable till dependencies are ironed out
+-try {
++if (googleServicesEnabled) {
++    apply plugin: "com.google.gms.google-services"
+     com.google.gms.googleservices.GoogleServicesPlugin.config.disableVersionCheck = true
+-} catch (e) {
+ }
+ 
+ boolean hasGoogleServicesSupport() {
+diff --git a/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java
+index 7fb178c..fa5d085 100644
+--- a/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java
+@@ -12,7 +12,6 @@ import com.mendix.mendixnative.react.MxConfiguration;
+ public class MainActivity extends MendixReactActivity {
+     @Override
+     protected void onCreate(@Nullable Bundle savedInstanceState) {
+-        this.getLifecycle().addObserver(new MendixActivityObserver(this));
+         Boolean hasDeveloperSupport = ((MainApplication) getApplication()).getUseDeveloperSupport();
+         mendixApp = new MendixApp(AppUrl.getUrlFromResource(this), MxConfiguration.WarningsFilter.none, hasDeveloperSupport);
+         super.onCreate(savedInstanceState);
+diff --git a/android/app/src/dev/AndroidManifest.xml b/android/app/src/dev/AndroidManifest.xml
+index be7074e..074b971 100644
+--- a/android/app/src/dev/AndroidManifest.xml
++++ b/android/app/src/dev/AndroidManifest.xml
+@@ -15,6 +15,6 @@
+             android:name="com.mendix.mendixnative.activity.MendixReactActivity"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+             android:launchMode="singleTop"
+-            android:windowSoftInputMode="adjustPan"></activity>
++            android:windowSoftInputMode="adjustResize"></activity>
+     </application>
+ </manifest>
+diff --git a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+index 8d64761..e3d7c97 100644
+--- a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+@@ -42,8 +42,6 @@ import okhttp3.OkHttpClient;
+ import okhttp3.Request;
+ import okhttp3.Response;
+ 
+-import static com.mendix.mendixnative.activity.MendixReactActivity.MENDIX_APP_INTENT_KEY;
+-
+ public class MainActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
+     static private int CAMERA_REQUEST = 1;
+     private Executor httpExecutor = Executors.newSingleThreadExecutor();
+@@ -76,12 +74,6 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+ 
+         appUrl.setText(appPreferences.getAppUrl());
+         devModeCheckBox.setChecked(appPreferences.isDevModeEnabled());
+-
+-        // This check is required for deep link to work.
+-        // Changes here will affect deep linking functionality
+-        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) != null) {
+-            launchApp(appPreferences.getAppUrl());
+-        }
+     }
+ 
+     @RequiresApi(api = Build.VERSION_CODES.M)
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index a1efd74..8acb126 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -35,7 +35,7 @@
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustPan">
++        android:windowSoftInputMode="adjustResize">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java b/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java
+index b8ac880..819ef6b 100644
+--- a/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java
++++ b/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java
+@@ -12,8 +12,13 @@ import com.microsoft.codepush.react.CodePush;
+ 
+ import org.devio.rn.splashscreen.SplashScreen;
+ 
++import java.util.Arrays;
+ import java.util.List;
+ 
++import io.invertase.firebase.RNFirebasePackage;
++import io.invertase.firebase.messaging.RNFirebaseMessagingPackage;
++import io.invertase.firebase.notifications.RNFirebaseNotificationsPackage;
++
+ public class MainApplication extends MendixReactApplication {
+     @Override
+     public boolean getUseDeveloperSupport() {
+@@ -23,12 +28,19 @@ public class MainApplication extends MendixReactApplication {
+     @Override
+     public List<ReactPackage> getPackages() {
+         List<ReactPackage> packages = new PackageList(this).getPackages();
+-        packages.addAll(new MendixPackageList(this).getPackages());
+ 
+         // Packages that cannot be autolinked yet can be added manually here, for example:
+         // packages.add(new MyReactNativePackage());
+         packages.add(new CodePush(getCodePushKey(), getApplicationContext(), BuildConfig.DEBUG));
+ 
++        if (BuildConfig.USE_FIREBASE) {
++            packages.addAll(Arrays.asList(
++                    new RNFirebaseMessagingPackage(),
++                    new RNFirebaseNotificationsPackage(),
++                    new RNFirebasePackage()
++            ));
++        }
++
+         return packages;
+     }
+ 
+diff --git a/android/build.gradle b/android/build.gradle
+index e196fae..2260a7f 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -20,7 +20,7 @@ buildscript {
+     dependencies {
+         classpath "com.android.tools.build:gradle:3.4.2"
+         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+-        apply from: file("./mendixnative-release/mendix.gradle"); applyMendixClassPaths(project)
++        classpath "com.google.gms:google-services:4.2.0"
+ 
+         // NOTE: Do not place your application dependencies here; they belong
+         // in the individual module build.gradle files
+diff --git a/android/mendixnative-release/mendix.gradle b/android/mendixnative-release/mendix.gradle
+deleted file mode 100644
+index ee91851..0000000
+--- a/android/mendixnative-release/mendix.gradle
++++ /dev/null
+@@ -1,438 +0,0 @@
+-import groovy.json.JsonSlurper
+-
+-def LOG_PREFIX = ":Mendix: "
+-
+-def rootDir = buildscript.sourceFile.toString().split("android(/|\\\\)mendixnative-release")[0]
+-def cliBinPath = "${rootDir}/node_modules/.bin/react-native${System.properties['os.name'].toLowerCase().contains('windows') ? ".cmd" : ""}"
+-
+-def generatedFilePackage = "com.mendix.nativetemplate"
+-def mainActivityObserverFileName = "MendixActivityObserver.java"
+-def mainActivityObserverTemplate = """package $generatedFilePackage;
+-
+-import android.content.Context;
+-
+-import androidx.lifecycle.Lifecycle;
+-import androidx.lifecycle.LifecycleObserver;
+-import androidx.lifecycle.OnLifecycleEvent;
+-{{imports}}
+-
+-public class MendixActivityObserver implements LifecycleObserver {
+-    private final Context context;
+-
+-    public MendixActivityObserver(Context activity) {
+-        this.context = activity;
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+-    void onCreate() {
+-        {{onCreate}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+-    void onResume() {
+-        {{onResume}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+-    void onStart() {
+-      {{onStart}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+-    void onPause() {
+-        {{onPause}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+-    void onStop() {
+-        {{onStop}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+-    void onDestroy() {
+-        {{onDestroy}}
+-    }
+-}
+-"""
+-def mendixPackageListFileName = "MendixPackageList.java"
+-def mendixPackageListTemplate = """package $generatedFilePackage;
+-
+-import android.app.Application;
+-import android.content.Context;
+-import android.content.res.Resources;
+-
+-import com.facebook.react.ReactPackage;
+-import com.facebook.react.shell.MainPackageConfig;
+-import com.facebook.react.shell.MainReactPackage;
+-import java.util.Arrays;
+-import java.util.ArrayList;
+-
+-{{imports}}
+-
+-public class MendixPackageList {
+-  private Application application;
+-  
+-  public MendixPackageList(Application application) {
+-    this.application = application;
+-  }
+-
+-  private Resources getResources() {
+-    return this.getApplication().getResources();
+-  }
+-
+-  private Application getApplication() {
+-    return this.application;
+-  }
+-
+-  private Context getApplicationContext() {
+-    return this.getApplication().getApplicationContext();
+-  }
+-
+-  public ArrayList<ReactPackage> getPackages() {
+-    return new ArrayList<>(Arrays.<ReactPackage>asList(
+-      {{packageClassInstances}}
+-    ));
+-  }
+-}
+-"""
+-
+-class MendixModules {
+-    private static String LINE_ENDING_CHAR = "\n"
+-
+-    private String cliBinPath
+-    private String rootDir
+-    private String logPrefix
+-    private Logger logger
+-    private ArrayList<HashMap<String, String>> reactNativeModules
+-    private Map dependenciesConfig = [:]
+-    private File capabilitiesConfigFile
+-    private File projectCapabilitiesFile
+-    private File nodeModulesDependenciesConfigFile
+-
+-    MendixModules(File capabilitiesConfigFile, File nodeModulesDependenciesConfigFile, File projectCapabilitiesFile, String cliBinPath, String rootDir, Logger logger, String logPrefix) {
+-        this.logger = logger
+-        this.rootDir = rootDir
+-        this.cliBinPath = cliBinPath
+-        this.logPrefix = logPrefix
+-        this.capabilitiesConfigFile = capabilitiesConfigFile
+-        this.nodeModulesDependenciesConfigFile = nodeModulesDependenciesConfigFile
+-        this.projectCapabilitiesFile = projectCapabilitiesFile
+-
+-        def (nativeModules) = this.getReactNativeConfig()
+-        this.reactNativeModules = nativeModules
+-        parseDependenciesConfig()
+-    }
+-
+-    void printDependencies() {
+-        this.reactNativeModules.each {
+-            logDebug(it["name"])
+-        }
+-    }
+-
+-    void parseDependenciesConfig() {
+-        def dependenciesConfig = [:]
+-        def capabilitiesConfig = [:]
+-
+-        try {
+-            capabilitiesConfig = new JsonSlurper().parse(this.capabilitiesConfigFile)
+-            def projectCapabilities = new JsonSlurper().parse(this.projectCapabilitiesFile)
+-            capabilitiesConfig.retainAll { capabilityConfig ->
+-                projectCapabilities.find { enabledCapability ->
+-                    enabledCapability.key == capabilityConfig.key && enabledCapability.value == true
+-                } && capabilityConfig.value["android"] != null
+-            }
+-        } catch (ignored) {
+-            this.logLifecycle("Failed parsing the capabilities file. Error?")
+-        }
+-
+-        if (this.nodeModulesDependenciesConfigFile.exists()) {
+-            try {
+-                dependenciesConfig = new JsonSlurper().parse(this.nodeModulesDependenciesConfigFile)
+-                (dependenciesConfig as Map).retainAll { dependencyConfig ->
+-                    this.reactNativeModules.find { nativeModule ->
+-                        nativeModule.get("name") == dependencyConfig.key
+-                    } && dependencyConfig.value["android"] != null
+-                }
+-            } catch (ignored) {
+-                this.logLifecycle("Failed parsing the configuration for unlinked node_modules. Error?")
+-            }
+-        }
+-
+-        this.dependenciesConfig = capabilitiesConfig + dependenciesConfig
+-        printDependencies()
+-    }
+-
+-    void generateMainActivityObserver(File outDir, String fileName, String template) {
+-        def activityImports = []
+-        def activityOnCreateEntries = []
+-        def activityOnStartEntries = []
+-        def activityOnResumeEntries = []
+-        def activityOnPauseEntries = []
+-        def activityOnStopEntries = []
+-        def activityOnDestroyEntries = []
+-
+-        dependenciesConfig.each {
+-            def mainActivityDelegateEntry = it.value["android"]["MainActivity"]
+-            if (!mainActivityDelegateEntry)
+-                return
+-
+-            def imports = mainActivityDelegateEntry.get("imports")
+-            if (imports)
+-                activityImports.addAll(imports)
+-
+-            def onCreateEntries = mainActivityDelegateEntry.get("onCreate")
+-            if (onCreateEntries)
+-                activityOnCreateEntries.addAll(onCreateEntries)
+-
+-            def onStartEntries = mainActivityDelegateEntry.get("onStart")
+-            if (onStartEntries)
+-                activityOnStartEntries.addAll(onStartEntries)
+-
+-            def onResumeEntries = mainActivityDelegateEntry.get("onResume")
+-            if (onResumeEntries)
+-                activityOnResumeEntries.addAll(onResumeEntries)
+-
+-            def onPauseEntries = mainActivityDelegateEntry.get("onPause")
+-            if (onPauseEntries)
+-                activityOnPauseEntries.addAll(onPauseEntries)
+-
+-            def onStopEntries = mainActivityDelegateEntry.get("onStop")
+-            if (onStopEntries)
+-                activityOnStopEntries.addAll(onStopEntries)
+-
+-            def onDestroyEntries = mainActivityDelegateEntry.get("onDestroy")
+-            if (onDestroyEntries)
+-                activityOnDestroyEntries.addAll(onDestroyEntries)
+-        }
+-
+-        String CODE_PADDING = "${LINE_ENDING_CHAR}        "
+-        String generatedFileContents = template
+-                .replace("{{imports}}", activityImports.join(LINE_ENDING_CHAR))
+-                .replace("{{onCreate}}", activityOnCreateEntries.join(CODE_PADDING))
+-                .replace("{{onStart}}", activityOnStartEntries.join(CODE_PADDING))
+-                .replace("{{onResume}}", activityOnResumeEntries.join(CODE_PADDING))
+-                .replace("{{onPause}}", activityOnPauseEntries.join(CODE_PADDING))
+-                .replace("{{onStop}}", activityOnStopEntries.join(CODE_PADDING))
+-                .replace("{{onDestroy}}", activityOnDestroyEntries.join(CODE_PADDING))
+-
+-        outDir.mkdirs()
+-        new FileTreeBuilder(outDir).file(fileName).newWriter().withWriter {
+-            w ->
+-                w << generatedFileContents
+-        }
+-    }
+-
+-    void generateMendixPackageList(File outDir, String fileName, String template) {
+-        String CODE_PADDING = "${LINE_ENDING_CHAR}      "
+-        def imports = []
+-        def entries = []
+-        def entrySeparator = "," + CODE_PADDING
+-        dependenciesConfig.each {
+-            def packageListEntry = it.value["android"]["packageListEntries"]
+-            if (packageListEntry) {
+-                def importsEntry = packageListEntry["imports"]
+-                def packageClassInstances = packageListEntry["packageClassInstances"]
+-                if (importsEntry)
+-                    imports.addAll(importsEntry)
+-                if (packageClassInstances)
+-                    entries.addAll(packageClassInstances)
+-            }
+-        }
+-
+-        String generatedFileContents = template.replace("{{imports}}", imports.join(CODE_PADDING)).replace("{{packageClassInstances}}", entries.join(entrySeparator))
+-
+-        outDir.mkdirs()
+-        new FileTreeBuilder(outDir).file(fileName).newWriter().withWriter {
+-            w ->
+-                w << generatedFileContents
+-        }
+-    }
+-
+-    void addClassPaths(Project project) {
+-        project.buildscript {
+-            dependencies {
+-                dependenciesConfig.each {
+-                    def gradle = (it.value as Object)["android"]["gradle"]
+-                    if (!gradle) {
+-                        return
+-                    }
+-                    def customClassPaths = gradle.get("classpaths") as ArrayList<String>
+-                    customClassPaths.each { customClassPath ->
+-                        this.logLifecycle("Adding classPath ${customClassPath}")
+-                        classpath(customClassPath)
+-                    }
+-                }
+-            }
+-        }
+-    }
+-
+-    void addExtraDependencies(Project project) {
+-        project.dependencies {
+-            dependenciesConfig.each {
+-                def dependencies = it.value["android"]["externalDependencies"] as ArrayList<String>
+-                dependencies.each { dependency ->
+-                    this.logLifecycle("Registering extra library ${dependency}")
+-                    implementation(dependency)
+-                }
+-            }
+-        }
+-    }
+-
+-    void addAndroidPlugins(Project project) {
+-        dependenciesConfig.each {
+-            def gradleConfig = it.value["android"]["gradle"]
+-            if (!gradleConfig)
+-                return
+-
+-            def dependencies = gradleConfig["plugins"] as ArrayList<String>
+-            if (!dependencies)
+-                return
+-
+-            dependencies.each { plugin ->
+-                this.logLifecycle("Adding plugin ${plugin}")
+-                project.getPluginManager().apply(plugin)
+-            }
+-        }
+-    }
+-
+-    void logDebug(String message) {
+-        this.logger.debug("${this.logPrefix}${message}")
+-    }
+-
+-    void logLifecycle(String message) {
+-        this.logger.lifecycle("${this.logPrefix}${message}")
+-    }
+-
+-    void logError(String message) {
+-        this.logger.error("${this.logPrefix}${message}")
+-    }
+-
+-    /**
+-     * Runs a specified command using Runtime exec() in a specified directory.
+-     * Throws when the command result is empty.
+-     */
+-    String getCommandOutput(String[] command) {
+-        try {
+-            def output = ""
+-            def cmdProcess = Runtime.getRuntime().exec(command)
+-            def bufferedReader = new BufferedReader(new InputStreamReader(cmdProcess.getInputStream()))
+-            def buff = ""
+-            def readBuffer = new StringBuffer()
+-            while ((buff = bufferedReader.readLine()) != null) {
+-                readBuffer.append(buff)
+-            }
+-            output = readBuffer.toString()
+-            if (!output) {
+-                this.logger.error("${logPrefix}Unexpected empty result of running '${command}' command.")
+-                def bufferedErrorReader = new BufferedReader(new InputStreamReader(cmdProcess.getErrorStream()))
+-                def errBuff = ""
+-                def readErrorBuffer = new StringBuffer()
+-                while ((errBuff = bufferedErrorReader.readLine()) != null) {
+-                    readErrorBuffer.append(errBuff)
+-                }
+-                throw new Exception(readErrorBuffer.toString())
+-            }
+-            return output
+-        } catch (Exception exception) {
+-            this.logError("Running '${command}' command failed.")
+-            throw exception
+-        }
+-    }
+-
+-    /**
+-     * Runs a process to call the React Native CLI Config command and parses the output
+-     */
+-    ArrayList<HashMap<String, String>> getReactNativeConfig() {
+-        if (this.reactNativeModules != null) return this.reactNativeModules
+-
+-        ArrayList<HashMap<String, String>> reactNativeModules = new ArrayList<HashMap<String, String>>()
+-
+-        String[] reactNativeConfigCommand = [this.cliBinPath, "config"]
+-        def reactNativeConfigOutput = this.getCommandOutput(reactNativeConfigCommand)
+-
+-        def json
+-        try {
+-            json = new JsonSlurper().parseText(reactNativeConfigOutput)
+-        } catch (Exception exception) {
+-            throw new Exception("Calling `${reactNativeConfigCommand}` finished with an exception. Error message: ${exception.toString()}. Output: ${reactNativeConfigOutput}");
+-        }
+-        def dependencies = json["dependencies"]
+-        def project = json["project"]["android"]
+-
+-        if (project == null) {
+-            throw new Exception("React Native CLI failed to determine Android project configuration. This is likely due to misconfiguration. Config output:\n${json.toMapString()}")
+-        }
+-
+-        dependencies.each { name, value ->
+-            def platformsConfig = value["platforms"];
+-            def androidConfig = platformsConfig["android"]
+-
+-            if (androidConfig != null && androidConfig["sourceDir"] != null) {
+-                this.logger.info("${logPrefix}Automatically adding native module '${name}'")
+-
+-                HashMap reactNativeModuleConfig = new HashMap<String, String>()
+-                reactNativeModuleConfig.put("name", name)
+-                reactNativeModuleConfig.put("nameCleansed", name.replaceAll('^@([\\w-]+)/', '$1_'))
+-                reactNativeModuleConfig.put("androidSourceDir", androidConfig["sourceDir"])
+-                reactNativeModuleConfig.put("packageInstance", androidConfig["packageInstance"])
+-                reactNativeModuleConfig.put("packageImportPath", androidConfig["packageImportPath"])
+-                this.logger.trace("${logPrefix}'${name}': ${reactNativeModuleConfig.toMapString()}")
+-
+-                reactNativeModules.add(reactNativeModuleConfig)
+-            } else {
+-                this.logger.info("${logPrefix}Skipping native module '${name}'")
+-            }
+-        }
+-
+-        return [reactNativeModules, json["project"]["android"]["packageName"]];
+-    }
+-}
+-
+-def generatedSrcDir = new File(buildDir, "generated/mendix/src/main/java")
+-def generatedCodeDir = new File(generatedSrcDir, generatedFilePackage.replace('.', '/'))
+-
+-def capabilitiesConfig = new File("${rootDir}capabilities-setup-config.json")
+-def unlinkedDependenciesConfigFile = new File("${rootDir}unlinked-dependency-config.json")
+-def capabilitiesFile = new File("${rootDir}capabilities.android.json")
+-def mendixModules = new MendixModules(capabilitiesConfig, unlinkedDependenciesConfigFile, capabilitiesFile, cliBinPath, rootDir, logger, LOG_PREFIX)
+-
+-def logLifecycle = { String message -> logger.lifecycle("${LOG_PREFIX}${message}") }
+-
+-
+-ext.applyMendixGradle = { Project project ->
+-    logLifecycle("Registering extra dependencies")
+-    mendixModules.addExtraDependencies(project)
+-
+-    logLifecycle("Registering plugins")
+-    mendixModules.addAndroidPlugins(project)
+-    task generateMendixDependencies {
+-        doLast {
+-            logLifecycle("Executing Mendix Module Generator")
+-            logLifecycle("App root: ${rootDir}")
+-            logLifecycle("CLI path: ${cliBinPath}")
+-
+-            logLifecycle("Generating ${mainActivityObserverFileName}")
+-            mendixModules.generateMainActivityObserver(generatedCodeDir, mainActivityObserverFileName, mainActivityObserverTemplate)
+-
+-            logLifecycle("Generating ${mendixPackageListFileName}")
+-            mendixModules.generateMendixPackageList(generatedCodeDir, mendixPackageListFileName, mendixPackageListTemplate)
+-        }
+-    }
+-
+-    preBuild.dependsOn generateMendixDependencies
+-
+-    android {
+-        sourceSets {
+-            main {
+-                java {
+-                    srcDirs += generatedSrcDir
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-ext.applyMendixClassPaths = { Project project ->
+-    logLifecycle("Registering class paths")
+-    mendixModules.addClassPaths(project)
+-}
+diff --git a/android/settings.gradle b/android/settings.gradle
+index dffa19f..cbe16c1 100644
+--- a/android/settings.gradle
++++ b/android/settings.gradle
+@@ -1,6 +1,8 @@
+ rootProject.name = 'nativeTemplate'
+ apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
+ 
++include ':react-native-firebase'
++project(':react-native-firebase').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-firebase/android')
+ include ':react-native-code-push'
+ project(':react-native-code-push').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-code-push/android/app')
+ include ':react-native-splash-screen'
+diff --git a/appcenter-build-config.json b/appcenter-build-config.json
+index 2441cbb..81944a7 100644
+--- a/appcenter-build-config.json
++++ b/appcenter-build-config.json
+@@ -3,11 +3,7 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [
+-      { "name": "CODE_PUSH_KEY", "value": "" },
+-      { "name": "IS_DEV_APP", "value": false },
+-      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
+-    ],
++    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
+     "toolsets": {
+       "xcode": {
+         "xcodeVersion": "12.0",
+@@ -33,11 +29,7 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [
+-      { "name": "CODE_PUSH_KEY", "value": "" },
+-      { "name": "IS_DEV_APP", "value": false },
+-      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
+-    ],
++    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
+     "toolsets": {
+       "android": {
+         "module": "app",
+diff --git a/appcenter-post-clone.sh b/appcenter-post-clone.sh
+index b827ca0..61fe2dd 100755
+--- a/appcenter-post-clone.sh
++++ b/appcenter-post-clone.sh
+@@ -1,5 +1,4 @@
+ #!/usr/bin/env bash
+-set -e
+ 
+ # Untar bundle resources
+ if [ -f "./android/res.tar.gz" ]; then 
+diff --git a/appcenter-pre-build.sh b/appcenter-pre-build.sh
+index 87a1d40..76e4a44 100755
+--- a/appcenter-pre-build.sh
++++ b/appcenter-pre-build.sh
+@@ -1,10 +1,4 @@
+ #!/usr/bin/env bash
+-set -e
+-
+-if [[ $SUPPORTS_MOBILE_TOOLKIT == True ]]; then
+-    echo "Configuring template with mobile toolkit"
+-    npm run configure
+-fi
+ 
+ INFO_PLIST=$APPCENTER_SOURCE_DIRECTORY/ios/$APPCENTER_XCODE_SCHEME/Info.plist
+ if [[ -e "$INFO_PLIST" && $IS_DEV_APP == False ]]; then
+diff --git a/capabilities-setup-config.json b/capabilities-setup-config.json
+deleted file mode 100644
+index 0ba8ec2..0000000
+--- a/capabilities-setup-config.json
++++ /dev/null
+@@ -1,102 +0,0 @@
+-{
+-    "deepLink": {
+-        "ios": {
+-            "AppDelegate": {
+-                "imports": [
+-                    "#import \"React/RCTLinkingManager.h\""
+-                ],
+-                "openURL": [
+-                    "[RCTLinkingManager application:application openURL:url sourceApplication:sourceApplication annotation:annotation];"
+-                ]
+-            }
+-        }
+-    },
+-    "pushNotifications": {
+-        "android": {
+-            "externalDependencies": [
+-                "com.google.firebase:firebase-messaging:20.1.2",
+-                "me.leolin:ShortcutBadger:1.1.22@aar"
+-            ],
+-            "packageListEntries": {
+-                "imports": [
+-                    "import io.invertase.firebase.messaging.RNFirebaseMessagingPackage;",
+-                    "import io.invertase.firebase.notifications.RNFirebaseNotificationsPackage;"
+-                ],
+-                "packageClassInstances": [
+-                    "new RNFirebaseMessagingPackage()",
+-                    "new RNFirebaseNotificationsPackage()"
+-                ]
+-            },
+-            "gradle": {
+-                "classpaths": [
+-                    "com.google.gms:google-services:4.2.0"
+-                ],
+-                "plugins": [
+-                    "com.google.gms.google-services"
+-                ]
+-            }
+-        },
+-        "ios": {
+-            "AppDelegate": {
+-                "imports": [
+-                    "#import <Firebase.h>",
+-                    "#import \"RNFirebase/RNFirebaseNotifications.h\"",
+-                    "#import \"RNFirebase/RNFirebaseMessaging.h\""
+-                ],
+-                "didFinishLaunchingWithOptions": [
+-                    "[FIRApp configure];",
+-                    "[RNFirebaseNotifications configure];"
+-                ],
+-                "didReceiveLocalNotification": [
+-                    "[[RNFirebaseNotifications instance] didReceiveLocalNotification:notification];"
+-                ],
+-                "didReceiveRemoteNotification": [
+-                    "[[RNFirebaseNotifications instance] didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];"
+-                ],
+-                "didRegisterUserNotificationSettings": [
+-                    "[[RNFirebaseMessaging instance] didRegisterUserNotificationSettings:notificationSettings];"
+-                ]
+-            },
+-            "pods": {
+-                "Firebase/Core": {
+-                    "version": "~> 6.19.0"
+-                },
+-                "Firebase/Messaging": {
+-                    "version": "~> 6.19.0"
+-                },
+-                "GoogleUtilities": {
+-                    "version": "~> 6.5.1"
+-                }
+-            }
+-        }
+-    },
+-    "bluetooth": {
+-        "ios": {
+-            "pods": {
+-                "react-native-ble-plx-swift": {
+-                    "path": "react-native-ble-plx"
+-                }
+-            }
+-        }
+-    },
+-    "maps": {},
+-    "mapsIos": {
+-        "ios": {
+-            "AppDelegate": {
+-                "imports": [
+-                    "#import <GoogleMaps/GoogleMaps.h>"
+-                ],
+-                "didFinishLaunchingWithOptions": [
+-                    "[GMSServices provideAPIKey:[[NSBundle mainBundle] objectForInfoDictionaryKey:@\"GoogleMapsApiKey\"] ?: @\"\"];"
+-                ]
+-            },
+-            "pods": {
+-                "react-native-google-maps": {
+-                    "path": "react-native-maps"
+-                },
+-                "GoogleMaps": {},
+-                "Google-Maps-iOS-Utils": {}
+-            }
+-        }
+-    }
+-}
+diff --git a/capabilities.android.json b/capabilities.android.json
+deleted file mode 100644
+index 0919a26..0000000
+--- a/capabilities.android.json
++++ /dev/null
+@@ -1,7 +0,0 @@
+-{
+-    "deepLink": false,
+-    "pushNotifications": false,
+-    "bluetooth": true,
+-    "maps": true,
+-    "mapsIos": true
+-}
+diff --git a/capabilities.ios.json b/capabilities.ios.json
+deleted file mode 100644
+index 0919a26..0000000
+--- a/capabilities.ios.json
++++ /dev/null
+@@ -1,7 +0,0 @@
+-{
+-    "deepLink": false,
+-    "pushNotifications": false,
+-    "bluetooth": true,
+-    "maps": true,
+-    "mapsIos": true
+-}
+diff --git a/ios/AppDelegate.m b/ios/AppDelegate.m
+index fc371df..6d21532 100644
+--- a/ios/AppDelegate.m
++++ b/ios/AppDelegate.m
+@@ -1,7 +1,9 @@
++#import <Firebase.h>
+ #import "AppDelegate.h"
+-#import "MendixAppDelegate.h"
+ #import "MendixNative/MendixNative.h"
+ #import "IQKeyboardManager/IQKeyboardManager.h"
++#import "RNFirebase/RNFirebaseNotifications.h"
++#import "RNFirebase/RNFirebaseMessaging.h"
+ #import "SplashScreenPresenter.h"
+ 
+ @implementation AppDelegate
+@@ -9,9 +11,12 @@
+ @synthesize shouldOpenInLastApp;
+ 
+ - (BOOL) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+-  [MendixAppDelegate application:application didFinishLaunchingWithOptions:launchOptions];
++  if (self.useFirebase) {
++    [FIRApp configure];
++    [RNFirebaseNotifications configure];
++  }
+   [self setupUI];
+-  
++
+   NSBundle *mainBundle = [NSBundle mainBundle];
+   NSString *targetName = [mainBundle objectForInfoDictionaryKey:@"TargetName"] ?: @"";
+ 
+@@ -49,7 +54,7 @@
+   NSURL *bundleUrl = [ReactNative.instance getJSBundleFile];
+   
+   if (bundleUrl != nil) {
+-    [ReactNative.instance setup:[[MendixApp alloc] init:nil bundleUrl:bundleUrl runtimeUrl:runtimeUrl warningsFilter:none isDeveloperApp:NO clearDataAtLaunch:NO splashScreenPresenter:[SplashScreenPresenter new]] launchOptions:launchOptions];
++    [ReactNative.instance setup:[[MendixApp alloc] init:nil bundleUrl:bundleUrl runtimeUrl:runtimeUrl warningsFilter:none isDeveloperApp:false clearDataAtLaunch:false splashScreenPresenter:[SplashScreenPresenter new]] launchOptions:launchOptions];
+     [ReactNative.instance start];
+   } else {
+     [self showUnrecoverableDialogWithTitle:@"No Mendix bundle found" message:@"Missing the Mendix app bundle. Make sure that the index.ios.bundle file is available in ios/NativeTemplate/Bundle folder. If building locally consult the documentation on how to generate a bundle from your project."];
+@@ -59,21 +64,27 @@
+ }
+ 
+ - (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
+-  [MendixAppDelegate application:application didReceiveLocalNotification:notification];
++  if (self.useFirebase) {
++    [[RNFirebaseNotifications instance] didReceiveLocalNotification:notification];
++  }
+ }
+ 
+ - (void) application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo
+ fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler{
+-  [MendixAppDelegate application:application didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
++  if (self.useFirebase) {
++    [[RNFirebaseNotifications instance] didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
++  }
+ }
+ 
+ - (void) application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings {
+-  [MendixAppDelegate application:application didRegisterUserNotificationSettings:notificationSettings];
++  if (self.useFirebase) {
++    [[RNFirebaseMessaging instance] didRegisterUserNotificationSettings:notificationSettings];
++  }
+ }
+ 
+-- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
+-  [MendixAppDelegate application:application openURL:url sourceApplication:sourceApplication annotation:annotation];
+-  return YES;
++- (BOOL) useFirebase {
++    NSString *path = [[NSBundle mainBundle] pathForResource:@"GoogleService-Info" ofType:@"plist"];
++    return [[NSFileManager defaultManager] fileExistsAtPath:path];
+ }
+ 
+ - (WarningsFilter) getWarningFilterValue {
+diff --git a/ios/Config/config.xcconfig b/ios/Config/config.xcconfig
+index 7adddb7..d9e8867 100644
+--- a/ios/Config/config.xcconfig
++++ b/ios/Config/config.xcconfig
+@@ -4,5 +4,3 @@ BUNDLE_DISPLAY_NAME = NativeTemplate
+ BUNDLE_IDENTIFIER = com.mendix.native.template
+ 
+ RUNTIME_URL = http:\/\/localhost:8080
+-
+-PRODUCT_NAME = nativeTemplate
+diff --git a/ios/Dev/Config/config.xcconfig b/ios/Dev/Config/config.xcconfig
+index bab3094..1766679 100644
+--- a/ios/Dev/Config/config.xcconfig
++++ b/ios/Dev/Config/config.xcconfig
+@@ -3,5 +3,3 @@
+ MAIN_STORY_BOARD = LaunchApp
+ BUNDLE_DISPLAY_NAME = Dev - NativeTemplate
+ BUNDLE_IDENTIFIER_APPEND = .developerapp
+-
+-PRODUCT_NAME = NativeTemplateDev
+diff --git a/ios/MendixAppDelegate.h b/ios/MendixAppDelegate.h
+deleted file mode 100644
+index b2c51c3..0000000
+--- a/ios/MendixAppDelegate.h
++++ /dev/null
+@@ -1,16 +0,0 @@
+-#import <UIKit/UIKit.h>
+-
+-@interface MendixAppDelegate : NSObject
+-
+-+ (void) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions;
+-
+-+ (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification;
+-
+-+ (void) application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo
+-fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler;
+-
+-+ (void) application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings;
+-
+-+ (void) application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation;
+-
+-@end
+diff --git a/ios/Podfile b/ios/Podfile
+index 4bec8af..d5f81a2 100644
+--- a/ios/Podfile
++++ b/ios/Podfile
+@@ -1,8 +1,6 @@
+ # Uncomment the next line to define a global platform for your project
+ platform :ios, '10.0'
+ require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+-require_relative './mendix_utils'
+-generate_mendix_delegate
+ 
+ def common_pods
+   # Comment the next line if you don't want to use dynamic frameworks
+@@ -43,21 +41,32 @@ def common_pods
+   # RN pods end
+ 
+   # Manually linked dependencies
++  pod 'react-native-camera', :path => '../node_modules/react-native-camera'
++  pod 'react-native-ble-plx', :path => '../node_modules/react-native-ble-plx'
++  pod 'react-native-ble-plx-swift', :path => '../node_modules/react-native-ble-plx'
++  pod 'react-native-maps', :path => '../node_modules/react-native-maps'
++  pod 'react-native-google-maps', :path => '../node_modules/react-native-maps'
++  pod 'react-native-geocoder', :path => '../node_modules/react-native-geocoder'
+   pod 'react-native-splash-screen', :path => '../node_modules/react-native-splash-screen'
+ 
+   # Third party dependencies of dependencies
++  pod 'GoogleMaps'
++  pod 'Google-Maps-iOS-Utils'
+   pod 'IQKeyboardManager'
++  pod 'Firebase/Core', '~> 6.19.0'
++  pod 'Firebase/Messaging', '~> 6.19.0'
++  pod 'GoogleUtilities', '~> 6.5.1'
++  pod 'Fabric', '~> 1.10.2'
++  pod 'Crashlytics', '~> 3.14.0'
+ end
+ 
+ target 'nativeTemplate' do
+-  generate_pod_dependencies
+   use_native_modules!
+   common_pods
+   # Intentionally left empty
+ end
+ 
+ target 'dev' do
+-  generate_pod_dependencies
+   use_native_modules!
+   common_pods
+   # Intentionally left empty
+diff --git a/ios/Podfile.lock b/ios/Podfile.lock
+index bbea556..b301b4e 100644
+--- a/ios/Podfile.lock
++++ b/ios/Podfile.lock
+@@ -456,7 +456,9 @@ PODS:
+ 
+ DEPENDENCIES:
+   - CodePush (from `../node_modules/react-native-code-push`)
++  - Crashlytics (~> 3.14.0)
+   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
++  - Fabric (~> 1.10.2)
+   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
+   - FBReactNativeSpec (from `../node_modules/react-native/Libraries/FBReactNativeSpec`)
+   - Firebase/Core (~> 6.19.0)
+@@ -764,6 +766,6 @@ SPEC CHECKSUMS:
+   TouchID: ba4c656d849cceabc2e4eef722dea5e55959ecf4
+   Yoga: f2a7cd4280bfe2cca5a7aed98ba0eb3d1310f18b
+ 
+-PODFILE CHECKSUM: 907c29c4504ccf424d696b27015e7d1f356cb212
++PODFILE CHECKSUM: 0cebfb2ab0abcf7ed7edc73265786a8151a4458d
+ 
+-COCOAPODS: 1.10.0
++COCOAPODS: 1.9.1
+diff --git a/ios/mendix_utils.rb b/ios/mendix_utils.rb
+deleted file mode 100644
+index 5f4379c..0000000
+--- a/ios/mendix_utils.rb
++++ /dev/null
+@@ -1,143 +0,0 @@
+-require "json"
+-
+-def generate_pod_dependencies
+-  resolved_pods = {}
+-
+-  capabilities_setup_config = get_capabilities_setup_config
+-  get_project_capabilities.select { |_, value| value == true }.each do |name, _|
+-    capability = capabilities_setup_config[name.to_s]
+-    if capability.nil?
+-      Pod::UI.warn "Capability for '#{name.to_s}' is not valid. This file should not be manipulated without guidance."
+-      next
+-    end
+-
+-    next unless capability["ios"] && pods = capability["ios"]["pods"]
+-    resolved_pods.merge! pods
+-  end
+-
+-  modules = get_react_native_config["dependencies"]
+-  get_unlinked_dependency_config.each do |name, options|
+-    next unless options["ios"] && modules.include?(name) && pods = options["ios"]["pods"]
+-    resolved_pods.merge! pods
+-  end
+-
+-  include_pods(resolved_pods.compact)
+-end
+-
+-def generate_mendix_delegate
+-  imports = []
+-  hooks = {
+-    didFinishLaunchingWithOptions: [],
+-    didReceiveLocalNotification: [],
+-    didReceiveRemoteNotification: [],
+-    didRegisterUserNotificationSettings: [],
+-    openURL: [],
+-  }
+-
+-  capabilities_setup_config = get_capabilities_setup_config
+-  get_project_capabilities.select { |_, value| value == true }.each do |name, _|
+-    capability = capabilities_setup_config[name.to_s]
+-    if capability.nil?
+-      Pod::UI.warn "Capability for '#{name.to_s}' is not valid. This file should not be manipulated without guidance."
+-      next
+-    end
+-
+-    next if capability["ios"].nil?
+-
+-    Pod::UI.notice "Capability for '#{name.to_s}' was enabled for this project."
+-
+-    next unless capability = capability["ios"]["AppDelegate"]
+-
+-    imports << capability["imports"] if !capability["imports"].nil?
+-
+-    hooks.each do |name, hook|
+-      hook << capability[name.to_s].map { |line| "  #{line}" } if !capability[name.to_s].nil?
+-    end
+-  end
+-
+-  File.open("MendixAppDelegate.m", "w") do |file|
+-    mendix_app_delegate = mendix_app_delegate_template.sub("{{ imports }}", stringify(imports))
+-    hooks.each { |name, hook| mendix_app_delegate.sub!("{{ #{name.to_s} }}", stringify(hook)) }
+-    file << mendix_app_delegate
+-  end
+-end
+-
+-def mendix_app_delegate_template
+-  %(// DO NOT EDIT BY HAND. THIS FILE IS AUTO-GENERATED
+-#import <Foundation/Foundation.h>
+-#import "MendixAppDelegate.h"
+-{{ imports }}
+-
+-@implementation MendixAppDelegate
+-
+-+ (void) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+-{{ didFinishLaunchingWithOptions }}
+-}
+-
+-+ (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
+-{{ didReceiveLocalNotification }}
+-}
+-
+-+ (void) application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo
+-fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler{
+-{{ didReceiveRemoteNotification }}
+-}
+-
+-+ (void) application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings {
+-{{ didRegisterUserNotificationSettings }}
+-}
+-
+-+ (void) application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
+-{{ openURL }}
+-}
+-
+-@end\n)
+-end
+-
+-def stringify(array)
+-  array.flatten.uniq.join("\n")
+-end
+-
+-def read_json_file_gracefully(path)
+-  file_path = File.join(__dir__, "..", path)
+-  JSON.parse(File.read(file_path)) if File.exists?(file_path)
+-end
+-
+-def get_unlinked_dependency_config
+-  read_json_file_gracefully("unlinked-dependency-config.json") || {}
+-end
+-
+-def get_capabilities_setup_config
+-  read_json_file_gracefully("capabilities-setup-config.json") || {}
+-end
+-
+-def get_project_capabilities
+-  read_json_file_gracefully("capabilities.ios.json") || {}
+-end
+-
+-# Source @react-native-community/cli-platform-ios/native_modules
+-def get_react_native_config
+-  cli_command = "try {console.log(require('@react-native-community/cli').bin);} catch (e) {console.log(require('react-native/cli').bin);}"
+-  cli_result = Pod::Executable.execute_command("node", ["-e", cli_command], true).strip
+-
+-  json = []
+-  IO.popen(["node", cli_result, "config"]) do |data|
+-    while line = data.gets
+-      json << line
+-    end
+-  end
+-
+-  JSON.parse(json.join("\n"))
+-end
+-
+-def include_pods(pods = {})
+-  pods.each do |name, pod|
+-    if pod["path"] != nil && !pod["path"].empty?
+-      pod name, :path => "../node_modules/#{pod["path"]}"
+-    elsif pod["version"] != nil && !pod["version"].empty?
+-      pod name, pod["version"]
+-    else
+-      pod name
+-    end
+-  end
+-end
+diff --git a/ios/nativeTemplate.xcodeproj/project.pbxproj b/ios/nativeTemplate.xcodeproj/project.pbxproj
+index b789257..f62bfe0 100644
+--- a/ios/nativeTemplate.xcodeproj/project.pbxproj
++++ b/ios/nativeTemplate.xcodeproj/project.pbxproj
+@@ -34,8 +34,6 @@
+ 		2C887FE324B8948F0003DC53 /* StoryBoardSplash.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C887FE124B8948F0003DC53 /* StoryBoardSplash.m */; };
+ 		2CD8398224D14DF900A83374 /* libMendix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2CD8397224D14DF700A83374 /* libMendix.a */; };
+ 		2CD8398324D14DF900A83374 /* libMendix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2CD8397224D14DF700A83374 /* libMendix.a */; };
+-		2C4991D124C593C3008403BB /* MendixAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C4991D024C593C3008403BB /* MendixAppDelegate.m */; };
+-		2C4991D224C593C3008403BB /* MendixAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C4991D024C593C3008403BB /* MendixAppDelegate.m */; };
+ 		9DF4091425A46A56E2A9A405 /* libPods-nativeTemplate.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 73F36AC2CCD37CCD4E7B1BB8 /* libPods-nativeTemplate.a */; };
+ 		B28D6DAD97033B55832E5853 /* libPods-dev.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 11502903429AC2E6E69E6482 /* libPods-dev.a */; };
+ 		EB55620C22E0755000E19C26 /* glyphicons-halflings-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EB55620B22E0755000E19C26 /* glyphicons-halflings-regular.ttf */; };
+@@ -91,8 +89,6 @@
+ 		2CD8397F24D14DF800A83374 /* UnsupportedFeatures.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnsupportedFeatures.h; sourceTree = "<group>"; };
+ 		2CD8398024D14DF800A83374 /* MendixBackwardsCompatUtility.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MendixBackwardsCompatUtility.h; sourceTree = "<group>"; };
+ 		2CD8398124D14DF900A83374 /* RuntimeInfoProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RuntimeInfoProvider.h; sourceTree = "<group>"; };
+-		2C4991D024C593C3008403BB /* MendixAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MendixAppDelegate.m; sourceTree = "<group>"; };
+-		2C4991D324C595F0008403BB /* MendixAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MendixAppDelegate.h; sourceTree = "<group>"; };
+ 		2E683DD88AD2190EB6610BB7 /* Pods-nativeTemplate.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nativeTemplate.debug.xcconfig"; path = "Target Support Files/Pods-nativeTemplate/Pods-nativeTemplate.debug.xcconfig"; sourceTree = "<group>"; };
+ 		3A1AE629EDD2EFAEE88E17A6 /* Pods-dev.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-dev.release.xcconfig"; path = "Target Support Files/Pods-dev/Pods-dev.release.xcconfig"; sourceTree = "<group>"; };
+ 		3A50E1C430A9EB98E247701D /* Pods-nativeTemplate.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nativeTemplate.debug.xcconfig"; path = "Target Support Files/Pods-nativeTemplate/Pods-nativeTemplate.debug.xcconfig"; sourceTree = "<group>"; };
+@@ -152,8 +148,6 @@
+ 				2C887F7124B7BFFE0003DC53 /* SplashScreenPresenter.m */,
+ 				2C887FE024B893FC0003DC53 /* RNSplashScreen+StoryBoardSplash.h */,
+ 				2C887FE124B8948F0003DC53 /* StoryBoardSplash.m */,
+-				2C4991D024C593C3008403BB /* MendixAppDelegate.m */,
+-				2C4991D324C595F0008403BB /* MendixAppDelegate.h */,
+ 				13B07FB61A68108700A75B9A /* Info.plist */,
+ 				1AAE158823C5FEFC00F855F4 /* SwiftInterop.swift */,
+ 				2C887FD924B88A0E0003DC53 /* LaunchScreen.storyboard */,
+@@ -577,7 +571,6 @@
+ 				2C887FE224B8948F0003DC53 /* StoryBoardSplash.m in Sources */,
+ 				EB59215B23BFA1F5001D6155 /* main.m in Sources */,
+ 				2C887F7224B7BFFE0003DC53 /* SplashScreenPresenter.m in Sources */,
+-				2C4991D124C593C3008403BB /* MendixAppDelegate.m in Sources */,
+ 				1AAE158923C5FEFC00F855F4 /* SwiftInterop.swift in Sources */,
+ 				EB55E08A23BF7FF700E3FB34 /* AppDelegate.m in Sources */,
+ 			);
+@@ -596,7 +589,6 @@
+ 				EB55E08823BF7FF500E3FB34 /* AppDelegate.m in Sources */,
+ 				1A0B3A992397DA2300388BF7 /* LaunchAppViewController.swift in Sources */,
+ 				1A0B3ADC2397F1FF00388BF7 /* URLValidator.swift in Sources */,
+-				2C4991D224C593C3008403BB /* MendixAppDelegate.m in Sources */,
+ 				EB59215C23BFA1F5001D6155 /* main.m in Sources */,
+ 				1A0B3AD82397EB4000388BF7 /* RoundedButton.swift in Sources */,
+ 			);
+@@ -682,7 +674,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+@@ -756,7 +748,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -803,7 +795,7 @@
+ 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -851,7 +843,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+@@ -971,7 +963,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -1018,7 +1010,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+diff --git a/ios/nativeTemplate/Info.plist b/ios/nativeTemplate/Info.plist
+index 32f0ee6..d12e1a7 100644
+--- a/ios/nativeTemplate/Info.plist
++++ b/ios/nativeTemplate/Info.plist
+@@ -29,8 +29,6 @@
+ 	<string>1</string>
+ 	<key>CodePushKey</key>
+ 	<string></string>
+-	<key>GoogleMapsApiKey</key>
+-	<string></string>
+ 	<key>LSRequiresIPhoneOS</key>
+ 	<true/>
+ 	<key>NSAppTransportSecurity</key>
+diff --git a/mendix_version.json b/mendix_version.json
+index 5ec1971..4f9b643 100644
+--- a/mendix_version.json
++++ b/mendix_version.json
+@@ -11,11 +11,7 @@
+     "max": "3.2.*",
+     "min": "3.2.0"
+   },
+-  ">=8.7.0": {
+-    "max": "3.1.*",
+-    "min": "2.1.0"
+-  },
+-  ">=8.6.3": {
++  "8.6.3": {
+     "max": "3.2.*",
+     "min": "3.2.0"
+   },
+diff --git a/package-lock.json b/package-lock.json
+index 6952d6b..86c4da1 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.9",
++  "version": "5.0.7",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -13364,9 +13364,9 @@
+       }
+     },
+     "react-native-image-picker": {
+-      "version": "2.3.4",
+-      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.4.tgz",
+-      "integrity": "sha512-4UHu+zOyDT570r5mIbjH6h1iMrKIq/qfsKiAVUEZwncVegh0usJiEYNyJw4CEVwNeehmye/ia5sLDsa+kzIE4g=="
++      "version": "2.3.1",
++      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.1.tgz",
++      "integrity": "sha512-c/a2h7/T7yBo5KlNQhcSn4xf4+6Li6LfJ59+GZT1ZzzWrj/6X8DiJ/TJBOlOZMC5tJriZKuRkWSsr74k6z+brw=="
+     },
+     "react-native-inappbrowser-reborn": {
+       "version": "3.3.4",
+diff --git a/package.json b/package.json
+index 1ee21e4..391363c 100644
+--- a/package.json
++++ b/package.json
+@@ -1,13 +1,9 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.9",
+-  "mendix": {
+-    "templateVersion": "5.1.8"
+-  },
++  "version": "5.0.7",
+   "private": true,
+   "scripts": {
+-    "postinstall": "patch-package && jetify",
+-    "configure": "native-mobile-toolkit configure --config-path='./config.json' --verbose"
++    "postinstall": "npx patch-package && npx jetify"
+   },
+   "dependencies": {
+     "@react-native-community/art": "1.2.0",
+@@ -30,7 +26,7 @@
+     "react-native-firebase": "5.6.0",
+     "react-native-geocoder": "0.5.0",
+     "react-native-gesture-handler": "1.6.0",
+-    "react-native-image-picker": "2.3.4",
++    "react-native-image-picker": "2.3.1",
+     "react-native-inappbrowser-reborn": "3.3.4",
+     "react-native-localize": "1.3.4",
+     "react-native-maps": "0.27.0",
+@@ -49,7 +45,6 @@
+   "devDependencies": {
+     "@babel/core": "^7.5.4",
+     "@babel/runtime": "^7.5.4",
+-    "@mendix/native-mobile-toolkit": "latest",
+     "babel-jest": "^25.2.6",
+     "detox": "17.6.1",
+     "jest": "^25.2.7",
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+index addcda4..9ebd000 100644
+--- a/patches/react-native-firebase+5.6.0.patch
++++ b/patches/react-native-firebase+5.6.0.patch
+@@ -1,59 +1,3 @@
+-diff --git a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-index 24f472e..085f926 100644
+---- a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-+++ b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-@@ -155,24 +155,33 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
+-   public Map<String, Object> getConstants() {
+-     Map<String, Object> constants = new HashMap<>();
+-     List<Map<String, Object>> appMapsList = new ArrayList<>();
+--    List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+--
+--    // TODO no way to get client id currently from app options - firebase sdk issue
+--    for (FirebaseApp app : firebaseAppList) {
+--      String appName = app.getName();
+--      FirebaseOptions appOptions = app.getOptions();
+--      Map<String, Object> appProps = new HashMap<>();
+--
+--      appProps.put("name", appName);
+--      appProps.put("apiKey", appOptions.getApiKey());
+--      appProps.put("appId", appOptions.getApplicationId());
+--      appProps.put("projectId", appOptions.getProjectId());
+--      appProps.put("projectId", appOptions.getProjectId());
+--      appProps.put("databaseURL", appOptions.getDatabaseUrl());
+--      appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+--      appProps.put("storageBucket", appOptions.getStorageBucket());
+--
+--      appMapsList.add(appProps);
+-+
+-+    try {
+-+      List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+-+
+-+      // TODO no way to get client id currently from app options - firebase sdk issue
+-+      for (FirebaseApp app : firebaseAppList) {
+-+        String appName = app.getName();
+-+        FirebaseOptions appOptions = app.getOptions();
+-+        Map<String, Object> appProps = new HashMap<>();
+-+
+-+        appProps.put("name", appName);
+-+        appProps.put("apiKey", appOptions.getApiKey());
+-+        appProps.put("appId", appOptions.getApplicationId());
+-+        appProps.put("projectId", appOptions.getProjectId());
+-+        appProps.put("projectId", appOptions.getProjectId());
+-+        appProps.put("databaseURL", appOptions.getDatabaseUrl());
+-+        appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+-+        appProps.put("storageBucket", appOptions.getStorageBucket());
+-+
+-+        appMapsList.add(appProps);
+-+      }
+-+    } catch (Exception e) {
+-+      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+-+      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+-+    } catch (NoClassDefFoundError e) {
+-+      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+-+      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+-     }
+- 
+-     constants.put("apps", appMapsList);
+ diff --git a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+ index 90fdb1d..92ac092 100644
+ --- a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+@@ -72,7 +16,7 @@ index 90fdb1d..92ac092 100644
+  
+  // Non Web SDK methods
+ diff --git a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-index d3aa1e3..b35e7c2 100644
++index d3aa1e3..0e34d39 100644
+ --- a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+ +++ b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+ @@ -102,17 +102,19 @@ - (void)didReceiveLocalNotification:(nonnull UILocalNotification *)localNotifica
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+deleted file mode 100644
+index e05f069..0000000
+--- a/patches/react-native-image-picker+2.3.4.patch
++++ /dev/null
+@@ -1,16 +0,0 @@
+-diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-index aa7641c..a12f055 100644
+---- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-+++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-@@ -216,6 +216,11 @@ public class MediaUtils
+-             scaledPhoto.recycle();
+-             scaledPhoto = null;
+-         }
+-+        if (imageConfig.original.getAbsolutePath() != null)
+-+        {
+-+            new File(imageConfig.original.getAbsolutePath()).delete();
+-+        }
+-+
+-         return result;
+-     }
+- 
+diff --git a/react-native.config.js b/react-native.config.js
+index e103df2..67421b6 100644
+--- a/react-native.config.js
++++ b/react-native.config.js
+@@ -1,23 +1,28 @@
+ module.exports = {
+     dependencies: {
+-        'react-native-code-push': {
++        'react-native-firebase': {
+             platforms: {
+                 // disable only on Android as we require some conditional setup
+                 android: null,
+             },
+         },
+-        'react-native-splash-screen': {
++        'react-native-camera': {
+             platforms: {
+-                android: null,
++                // disable only on iOS as we require some conditional setup
+                 ios: null,
+             },
+         },
+-        'react-native-video': {
++        'react-native-code-push': {
+             platforms: {
+-              android: {
+-                sourceDir: '../node_modules/react-native-video/android-exoplayer',
+-              },
++                // disable only on Android as we require some conditional setup
++                android: null,
+             },
+         },
++        'react-native-splash-screen': {
++            platforms: {
++                android: null,
++                ios: null,
++            },
++        }
+     },
+ };

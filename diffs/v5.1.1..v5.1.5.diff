@@ -1,0 +1,231 @@
+diff --git a/android/app/src/dev/AndroidManifest.xml b/android/app/src/dev/AndroidManifest.xml
+index 074b971..be7074e 100644
+--- a/android/app/src/dev/AndroidManifest.xml
++++ b/android/app/src/dev/AndroidManifest.xml
+@@ -15,6 +15,6 @@
+             android:name="com.mendix.mendixnative.activity.MendixReactActivity"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+             android:launchMode="singleTop"
+-            android:windowSoftInputMode="adjustResize"></activity>
++            android:windowSoftInputMode="adjustPan"></activity>
+     </application>
+ </manifest>
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 8acb126..a1efd74 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -35,7 +35,7 @@
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustResize">
++        android:windowSoftInputMode="adjustPan">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/ios/Podfile.lock b/ios/Podfile.lock
+index 7d80a82..bbea556 100644
+--- a/ios/Podfile.lock
++++ b/ios/Podfile.lock
+@@ -156,7 +156,7 @@ PODS:
+     - nanopb/encode (= 0.3.9011)
+   - nanopb/decode (0.3.9011)
+   - nanopb/encode (0.3.9011)
+-  - PromisesObjC (1.2.10)
++  - PromisesObjC (1.2.11)
+   - Protobuf (3.13.0)
+   - RCTRequired (0.61.5)
+   - RCTTypeSafety (0.61.5):
+@@ -409,8 +409,8 @@ PODS:
+     - React
+   - RNCMaskedView (0.1.7):
+     - React
+-  - RNDateTimePicker (2.3.0):
+-    - React
++  - RNDateTimePicker (3.0.4):
++    - React-Core
+   - RNDeviceInfo (5.5.3):
+     - React
+   - RNFastImage (8.1.5):
+@@ -443,9 +443,9 @@ PODS:
+     - React
+   - RNVectorIcons (6.6.0):
+     - React
+-  - SDWebImage (5.9.2):
+-    - SDWebImage/Core (= 5.9.2)
+-  - SDWebImage/Core (5.9.2)
++  - SDWebImage (5.10.0):
++    - SDWebImage/Core (= 5.10.0)
++  - SDWebImage/Core (5.10.0)
+   - SDWebImageWebPCoder (0.4.1):
+     - libwebp (~> 1.0)
+     - SDWebImage/Core (~> 5.5)
+@@ -456,9 +456,7 @@ PODS:
+ 
+ DEPENDENCIES:
+   - CodePush (from `../node_modules/react-native-code-push`)
+-  - Crashlytics (~> 3.14.0)
+   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
+-  - Fabric (~> 1.10.2)
+   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
+   - FBReactNativeSpec (from `../node_modules/react-native/Libraries/FBReactNativeSpec`)
+   - Firebase/Core (~> 6.19.0)
+@@ -707,7 +705,7 @@ SPEC CHECKSUMS:
+   JWT: 9b5c05abbcc1a0e69c3c91e1655b3387fc7e581d
+   libwebp: 946cb3063cea9236285f7e9a8505d806d30e07f3
+   nanopb: 18003b5e52dab79db540fe93fe9579f399bd1ccd
+-  PromisesObjC: b14b1c6b68e306650688599de8a45e49fae81151
++  PromisesObjC: 8c196f5a328c2cba3e74624585467a557dcb482f
+   Protobuf: 3dac39b34a08151c6d949560efe3f86134a3f748
+   RCTRequired: b153add4da6e7dbc44aebf93f3cf4fcae392ddf1
+   RCTTypeSafety: 9aa1b91d7f9310fc6eadc3cf95126ffe818af320
+@@ -749,7 +747,7 @@ SPEC CHECKSUMS:
+   ReactNativeDarkMode: 0178ffca3b10f6a7c9f49d6f9810232b328fa949
+   RNCAsyncStorage: 00bdf63f7f1e0f11d3323533dba4f222e58bf092
+   RNCMaskedView: 90dd32f5b786bd562e876e1421ea77c700cbf71e
+-  RNDateTimePicker: d7d3dde9497b4bd4b3ea84881c41d3f0ece481f5
++  RNDateTimePicker: 88dc10d685ce961339bad3353c64db96c5abd19b
+   RNDeviceInfo: 67607dfe9cfbed105838144c40187a8392aa404d
+   RNFastImage: 35ae972d6727c84ee3f5c6897e07f84d0a3445e9
+   RNFirebase: 37daa9a346d070f9f6ee1f3b4aaf4c8e3b1d5d1c
+@@ -760,12 +758,12 @@ SPEC CHECKSUMS:
+   RNSound: c980916b596cc15c8dcd2f6ecd3b13c4881dbe20
+   RNSVG: 7e16ddfc6e00d5aa69c9eb83e699bcce5dcb85d4
+   RNVectorIcons: 0bb4def82230be1333ddaeee9fcba45f0b288ed4
+-  SDWebImage: 0b42b8719ab0c5257177d5894306e8a336b21cbb
++  SDWebImage: 9169792e9eec3e45bba2a0c02f74bf8bd922d1ee
+   SDWebImageWebPCoder: 36f8f47bd9879a8aea6044765c1351120fd8e3a8
+   SSZipArchive: 62d4947b08730e4cda640473b0066d209ff033c9
+   TouchID: ba4c656d849cceabc2e4eef722dea5e55959ecf4
+   Yoga: f2a7cd4280bfe2cca5a7aed98ba0eb3d1310f18b
+ 
+-PODFILE CHECKSUM: 0cebfb2ab0abcf7ed7edc73265786a8151a4458d
++PODFILE CHECKSUM: 907c29c4504ccf424d696b27015e7d1f356cb212
+ 
+-COCOAPODS: 1.9.1
++COCOAPODS: 1.10.0
+diff --git a/package-lock.json b/package-lock.json
+index 51faf4c..03b1618 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.1",
++  "version": "5.1.5",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -3750,9 +3750,9 @@
+       "integrity": "sha512-ng6Tm537E/M42GjE4TRUxQyL8sRfClcL7bQWblOCoxPZzJ2J3bdALsjeG3vDnVCIfI/R0AeFalN9KjMt0+Z/Zg=="
+     },
+     "@react-native-community/datetimepicker": {
+-      "version": "2.3.0",
+-      "resolved": "https://registry.npmjs.org/@react-native-community/datetimepicker/-/datetimepicker-2.3.0.tgz",
+-      "integrity": "sha512-kEmhnvkVm0/WJxle2Oze1Wu5pSO65jeP6vdVJzglgQDI3X9bHUlId0JTKZPpDAB9nFUM8cp5X5RSR0KW0SbFsA==",
++      "version": "3.0.4",
++      "resolved": "https://registry.npmjs.org/@react-native-community/datetimepicker/-/datetimepicker-3.0.4.tgz",
++      "integrity": "sha512-IsBkemz1XYubH5twfQPC/xleZdILA5SEUaLJ2C86IbnIOctb6suk8tB6uT9VxQkCsw4zjkrlqt9p9LGx9DJ97w==",
+       "requires": {
+         "invariant": "^2.2.4"
+       }
+diff --git a/package.json b/package.json
+index f703d9e..e2ad5de 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.1",
++  "version": "5.1.5",
+   "private": true,
+   "scripts": {
+     "postinstall": "npx patch-package && npx jetify"
+@@ -9,7 +9,7 @@
+     "@react-native-community/art": "1.2.0",
+     "@react-native-community/async-storage": "1.8.1",
+     "@react-native-community/cameraroll": "1.4.0",
+-    "@react-native-community/datetimepicker": "2.3.0",
++    "@react-native-community/datetimepicker": "3.0.4",
+     "@react-native-community/geolocation": "2.0.2",
+     "@react-native-community/masked-view": "0.1.7",
+     "@react-native-community/netinfo": "5.6.2",
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+new file mode 100644
+index 0000000..9ebd000
+--- /dev/null
++++ b/patches/react-native-firebase+5.6.0.patch
+@@ -0,0 +1,51 @@
++diff --git a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
++index 90fdb1d..92ac092 100644
++--- a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+++++ b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
++@@ -187,8 +187,10 @@ - (void)messaging:(nonnull FIRMessaging *)messaging
++ }
++ 
++ RCT_EXPORT_METHOD(registerForRemoteNotifications:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
++-    [RCTSharedApplication() registerForRemoteNotifications];
++-    resolve(nil);
+++    dispatch_async(dispatch_get_main_queue(), ^{
+++        [RCTSharedApplication() registerForRemoteNotifications];
+++        resolve(nil);
+++    });
++ }
++ 
++ // Non Web SDK methods
++diff --git a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
++index d3aa1e3..0e34d39 100644
++--- a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+++++ b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
++@@ -102,17 +102,19 @@ - (void)didReceiveLocalNotification:(nonnull UILocalNotification *)localNotifica
++ 
++ RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchResult)fetchResult) {
++     if (handlerKey != nil) {
++-        void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
++-        if (fetchCompletionHandler != nil) {
++-            fetchCompletionHandlers[handlerKey] = nil;
++-            fetchCompletionHandler(fetchResult);
++-        } else {
++-            void(^completionHandler)(void) = completionHandlers[handlerKey];
++-            if (completionHandler != nil) {
++-                completionHandlers[handlerKey] = nil;
++-                completionHandler();
+++        dispatch_async(dispatch_get_main_queue(), ^{
+++            void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+++            if (fetchCompletionHandler != nil) {
+++                fetchCompletionHandlers[handlerKey] = nil;
+++                fetchCompletionHandler(fetchResult);
+++            } else {
+++                void(^completionHandler)(void) = completionHandlers[handlerKey];
+++                if (completionHandler != nil) {
+++                    completionHandlers[handlerKey] = nil;
+++                    completionHandler();
+++                }
++             }
++-        }
+++        });
++     }
++ }
++ 
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+new file mode 100644
+index 0000000..9d24528
+--- /dev/null
++++ b/patches/react-native-image-picker+2.3.4.patch
+@@ -0,0 +1,16 @@
++diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++index aa7641c..9438aea 100644
++--- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+++++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
++@@ -216,6 +216,11 @@ public class MediaUtils
++             scaledPhoto.recycle();
++             scaledPhoto = null;
++         }
+++
+++        if(imageConfig.original.getAbsolutePath() != null){
+++            new File(imageConfig.original.getAbsolutePath()).delete();
+++        }
+++
++         return result;
++     }
++
