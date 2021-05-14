@@ -1,0 +1,583 @@
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index b4095ba..8acb126 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -28,7 +28,8 @@
+       android:roundIcon="@mipmap/ic_launcher_round"
+       android:allowBackup="false"
+       android:largeHeap="true"
+-      android:theme="@style/AppTheme">
++      android:theme="@style/AppTheme"
++      android:requestLegacyExternalStorage="true">
+       <activity
+         android:name="com.mendix.nativetemplate.MainActivity"
+         android:label="@string/app_name"
+diff --git a/appcenter-build-config.json b/appcenter-build-config.json
+index 839fc7b..81944a7 100644
+--- a/appcenter-build-config.json
++++ b/appcenter-build-config.json
+@@ -6,7 +6,7 @@
+     "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
+     "toolsets": {
+       "xcode": {
+-        "xcodeVersion": "11.5",
++        "xcodeVersion": "12.0",
+         "automaticSigning": false,
+         "projectOrWorkspacePath": "ios/NativeTemplate.xcworkspace",
+         "podfilePath": "ios/Podfile",
+@@ -15,7 +15,7 @@
+       "javascript": {
+         "packageJsonPath": "package.json",
+         "runTests": false,
+-        "nodeVersion": "10.x"
++        "nodeVersion": "12.x"
+       },
+       "buildscripts": {
+         "package.json": {
+@@ -43,7 +43,7 @@
+       "javascript": {
+         "packageJsonPath": "package.json",
+         "runTests": false,
+-        "nodeVersion": "10.x"
++        "nodeVersion": "12.x"
+       },
+       "buildscripts": {
+         "package.json": {
+diff --git a/ios/AppDelegate.m b/ios/AppDelegate.m
+index 613f280..6d21532 100644
+--- a/ios/AppDelegate.m
++++ b/ios/AppDelegate.m
+@@ -15,6 +15,7 @@
+     [FIRApp configure];
+     [RNFirebaseNotifications configure];
+   }
++  [self setupUI];
+ 
+   NSBundle *mainBundle = [NSBundle mainBundle];
+   NSString *targetName = [mainBundle objectForInfoDictionaryKey:@"TargetName"] ?: @"";
+@@ -101,4 +102,10 @@ fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHand
+   }]];
+   [self.window.rootViewController presentViewController:alertController animated:YES completion:nil];
+ }
++
++- (void) setupUI {
++  if (@available(iOS 13.4, *)) {
++    [UIDatePicker appearance].preferredDatePickerStyle = UIDatePickerStyleWheels;
++  }
++}
+ @end
+diff --git a/ios/Podfile.lock b/ios/Podfile.lock
+index b0a4579..7d80a82 100644
+--- a/ios/Podfile.lock
++++ b/ios/Podfile.lock
+@@ -98,7 +98,7 @@ PODS:
+     - GoogleUtilities/Network (~> 6.0)
+     - "GoogleUtilities/NSData+zlib (~> 6.0)"
+     - nanopb (= 0.3.9011)
+-  - GoogleDataTransport (6.0.0)
++  - GoogleDataTransport (6.2.1)
+   - GoogleDataTransportCCTSupport (3.0.0):
+     - GoogleDataTransport (~> 6.0)
+     - nanopb (~> 0.3.901)
+@@ -139,7 +139,7 @@ PODS:
+     - GoogleUtilities/MethodSwizzler
+   - GoogleUtilities/UserDefaults (6.5.2):
+     - GoogleUtilities/Logger
+-  - IQKeyboardManager (6.5.5)
++  - IQKeyboardManager (6.5.6)
+   - JWT (3.0.0-beta.12):
+     - Base64 (~> 1.1.2)
+   - libwebp (1.1.0):
+@@ -156,8 +156,8 @@ PODS:
+     - nanopb/encode (= 0.3.9011)
+   - nanopb/decode (0.3.9011)
+   - nanopb/encode (0.3.9011)
+-  - PromisesObjC (1.2.8)
+-  - Protobuf (3.11.4)
++  - PromisesObjC (1.2.10)
++  - Protobuf (3.13.0)
+   - RCTRequired (0.61.5)
+   - RCTTypeSafety (0.61.5):
+     - FBLazyVector (= 0.61.5)
+@@ -443,13 +443,13 @@ PODS:
+     - React
+   - RNVectorIcons (6.6.0):
+     - React
+-  - SDWebImage (5.7.3):
+-    - SDWebImage/Core (= 5.7.3)
+-  - SDWebImage/Core (5.7.3)
++  - SDWebImage (5.9.2):
++    - SDWebImage/Core (= 5.9.2)
++  - SDWebImage/Core (5.9.2)
+   - SDWebImageWebPCoder (0.4.1):
+     - libwebp (~> 1.0)
+     - SDWebImage/Core (~> 5.5)
+-  - SSZipArchive (2.2.2)
++  - SSZipArchive (2.2.3)
+   - TouchID (4.4.1):
+     - React
+   - Yoga (1.14.0)
+@@ -680,10 +680,10 @@ EXTERNAL SOURCES:
+ SPEC CHECKSUMS:
+   Base64: cecfb41a004124895a7bcee567a89bae5a89d49b
+   boost-for-react-native: 39c7adb57c4e60d6c5479dd8623128eb5b3f0f2c
+-  CodePush: bb7e03266a59b81c45d67f518dd5eb30aeb09b1e
+-  Crashlytics: 540b7e5f5da5a042647227a5e3ac51d85eed06df
++  CodePush: 46ca36050986e6afb911fc4eeb0fe80515ac1c19
++  Crashlytics: 9220f5bc89e7a618df411b4f639389dbfb0e03d2
+   DoubleConversion: 5805e889d232975c086db112ece9ed034df7a0b2
+-  Fabric: 706c8b8098fff96c33c0db69cbf81f9c551d0d74
++  Fabric: ea977e3cd9c20425516d3dafd3bf8c941c51223f
+   FBLazyVector: aaeaf388755e4f29cd74acbc9e3b8da6d807c37f
+   FBReactNativeSpec: 118d0d177724c2d67f08a59136eb29ef5943ec75
+   Firebase: d55ddb0e0bb3207166cddc028647833d8a1b5b6f
+@@ -699,16 +699,16 @@ SPEC CHECKSUMS:
+   glog: 1f3da668190260b06b429bb211bfbee5cd790c28
+   Google-Maps-iOS-Utils: c32891ff472eaaa1fca032beedafa1a013af7875
+   GoogleAppMeasurement: c29d405ff76e18551b5d158eaba6753fda8c7542
+-  GoogleDataTransport: 061fe7d9b476710e3cd8ea51e8e07d8b67c2b420
++  GoogleDataTransport: 9a8a16f79feffc7f42096743de2a7c4815e84020
+   GoogleDataTransportCCTSupport: 0f39025e8cf51f168711bd3fb773938d7e62ddb5
+   GoogleMaps: 32ca02de09de357a10ac773f2c70f1986751392d
+   GoogleUtilities: ad0f3b691c67909d03a3327cc205222ab8f42e0e
+-  IQKeyboardManager: 3a8b9e603f8b0eeaf5f096a1f2b2cfcf121992ef
++  IQKeyboardManager: 2a6e97afdafc7becf0cb17a9a8d795e3a980717f
+   JWT: 9b5c05abbcc1a0e69c3c91e1655b3387fc7e581d
+   libwebp: 946cb3063cea9236285f7e9a8505d806d30e07f3
+   nanopb: 18003b5e52dab79db540fe93fe9579f399bd1ccd
+-  PromisesObjC: c119f3cd559f50b7ae681fa59dc1acd19173b7e6
+-  Protobuf: 176220c526ad8bd09ab1fb40a978eac3fef665f7
++  PromisesObjC: b14b1c6b68e306650688599de8a45e49fae81151
++  Protobuf: 3dac39b34a08151c6d949560efe3f86134a3f748
+   RCTRequired: b153add4da6e7dbc44aebf93f3cf4fcae392ddf1
+   RCTTypeSafety: 9aa1b91d7f9310fc6eadc3cf95126ffe818af320
+   React: b6a59ef847b2b40bb6e0180a97d0ca716969ac78
+@@ -720,21 +720,21 @@ SPEC CHECKSUMS:
+   React-jsinspector: fa0ecc501688c3c4c34f28834a76302233e29dc0
+   react-native-ble-plx: 304c7bee074a05581672c9990f375b3906808718
+   react-native-ble-plx-swift: eb64f02b988becb84a60164aba9fab5d6ddb6dc8
+-  react-native-calendar-events: eaa63134881d97488feb21ea114158f712894018
+-  react-native-camera: 7c6cf8ddc64405e1aff0a26d1b487378597f9fed
+-  react-native-cameraroll: dbda741db5dadcdcf738e55a1fd565c307943bca
++  react-native-calendar-events: 2fe35a9294af05de0ed819d3a1b5dac048d2c010
++  react-native-camera: 2b575b086c06caf89fd3d119d06bd977a9942103
++  react-native-cameraroll: 1edb879e985fe97d1d44f42372cb4a948e0384cd
+   react-native-geocoder: 757427682892bb256f3b3745858cc90eba148a8e
+-  react-native-geolocation: c956aeb136625c23e0dce0467664af2c437888c9
++  react-native-geolocation: cbd9d6bd06bac411eed2671810f454d4908484a8
+   react-native-google-maps: 773b7bcef4f92005847cbf455ca1fa76a21e74c7
+-  react-native-image-picker: 6a850c41f57f0848d918c2a77aedd7aa272ffa30
++  react-native-image-picker: 668e72d0277dc8c12ae90e835507c1eddd2e4f85
+   react-native-maps: 6e1cf14d0aabefe59966da6dad7cb662251d3d83
+-  react-native-netinfo: 73303369946c2487c600418961bfdc87748b832f
+-  react-native-safe-area-context: e200d4433aba6b7e60b52da5f37af11f7a0b0392
++  react-native-netinfo: c67896313964727ddae153d6e119f65dae840d51
++  react-native-safe-area-context: 8260e5157617df4b72865f44006797f895b2ada7
+   react-native-splash-screen: 200d11d188e2e78cea3ad319964f6142b6384865
+-  react-native-sqlite-storage: f06bfba10f67f989c00b6a699b9c2b80a816edbe
+-  react-native-video: d01ed7ff1e38fa7dcc6c15c94cf505e661b7bfd0
+-  react-native-view-shot: 4475fde003fe8a210053d1f98fb9e06c1d834e1c
+-  react-native-webview: fcb5f377aadc216273300f452ee0d321fb85809b
++  react-native-sqlite-storage: bb10beb2407e5fc21f3f1bcd86bacbfd6edcc818
++  react-native-video: 961749da457e73bf0b5565edfbaffc25abfb8974
++  react-native-view-shot: 08c46c9e8e92f6681e8f2ffa55ac3d06e7e99070
++  react-native-webview: 055c7110f17c2f19c971f655064ee480638db668
+   React-RCTActionSheet: 600b4d10e3aea0913b5a92256d2719c0cdd26d76
+   React-RCTAnimation: 791a87558389c80908ed06cc5dfc5e7920dfa360
+   React-RCTBlob: d89293cc0236d9cb0933d85e430b0bbe81ad1d72
+@@ -745,24 +745,24 @@ SPEC CHECKSUMS:
+   React-RCTText: 9ccc88273e9a3aacff5094d2175a605efa854dbe
+   React-RCTVibration: a49a1f42bf8f5acf1c3e297097517c6b3af377ad
+   ReactCommon: 198c7c8d3591f975e5431bec1b0b3b581aa1c5dd
+-  ReactNativeART: 78edc68dd4a1e675338cd0cd113319cf3a65f2ab
++  ReactNativeART: f003b07dfa7098aa419ed95b69560923440b1eee
+   ReactNativeDarkMode: 0178ffca3b10f6a7c9f49d6f9810232b328fa949
+-  RNCAsyncStorage: e0dd7c8a36543b4ef84969acd9f8aceba3a92dc2
+-  RNCMaskedView: 76c40a1d41c3e2535df09246a2b5487f04de0814
+-  RNDateTimePicker: 63e79b1e0dc6da8806ed8cf76e8528f7f88bcbc3
+-  RNDeviceInfo: 310c1f43d418d950a193c7650de2f9559c906048
++  RNCAsyncStorage: 00bdf63f7f1e0f11d3323533dba4f222e58bf092
++  RNCMaskedView: 90dd32f5b786bd562e876e1421ea77c700cbf71e
++  RNDateTimePicker: d7d3dde9497b4bd4b3ea84881c41d3f0ece481f5
++  RNDeviceInfo: 67607dfe9cfbed105838144c40187a8392aa404d
+   RNFastImage: 35ae972d6727c84ee3f5c6897e07f84d0a3445e9
+   RNFirebase: 37daa9a346d070f9f6ee1f3b4aaf4c8e3b1d5d1c
+   RNGestureHandler: dde546180bf24af0b5f737c8ad04b6f3fa51609a
+-  RNInAppBrowser: 9936b2e23ab7ed9b6ac938eb1c4a656b95292e11
+-  RNLocalize: 215c419a17d7585eb7a63c748ebfd042e0cb2c3d
++  RNInAppBrowser: b51ad29a3cfe36a9a55866d42fc169aa7db8522e
++  RNLocalize: d8025bb1ac74c0ad54155ea9862538624ebf74d8
+   RNReanimated: 031fe8d9ea93c2bd689a40f05320ef9d96f74d7f
+-  RNSound: da030221e6ac7e8290c6b43f2b5f2133a8e225b0
++  RNSound: c980916b596cc15c8dcd2f6ecd3b13c4881dbe20
+   RNSVG: 7e16ddfc6e00d5aa69c9eb83e699bcce5dcb85d4
+   RNVectorIcons: 0bb4def82230be1333ddaeee9fcba45f0b288ed4
+-  SDWebImage: 97351f6582ceca541ea294ba66a1fcb342a331c2
++  SDWebImage: 0b42b8719ab0c5257177d5894306e8a336b21cbb
+   SDWebImageWebPCoder: 36f8f47bd9879a8aea6044765c1351120fd8e3a8
+-  SSZipArchive: fa16b8cc4cdeceb698e5e5d9f67e9558532fbf23
++  SSZipArchive: 62d4947b08730e4cda640473b0066d209ff033c9
+   TouchID: ba4c656d849cceabc2e4eef722dea5e55959ecf4
+   Yoga: f2a7cd4280bfe2cca5a7aed98ba0eb3d1310f18b
+ 
+diff --git a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+index 9f926e3..cee16f9 100644
+--- a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
++++ b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+@@ -48,6 +48,60 @@
+       "filename" : "app@3x.png",
+       "scale" : "3x"
+     },
++    {
++      "filename" : "notification@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "20x20"
++    },
++    {
++      "filename" : "notification@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "20x20"
++    },
++    {
++      "filename" : "settings@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "29x29"
++    },
++    {
++      "filename" : "settings@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "29x29"
++    },
++    {
++      "filename" : "spotlight@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "40x40"
++    },
++    {
++      "filename" : "spotlight@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "40x40"
++    },
++    {
++      "filename" : "ipadapp@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "76x76"
++    },
++    {
++      "filename" : "ipadapp@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "76x76"
++    },
++    {
++      "filename" : "ipadproapp@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "83.5x83.5"
++    },
+     {
+       "size" : "1024x1024",
+       "idiom" : "ios-marketing",
+diff --git a/package-lock.json b/package-lock.json
+index f616c0b..bd3b4c3 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.2",
++  "version": "5.0.5",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -4819,13 +4819,13 @@
+       "integrity": "sha512-MQcXEUbCKtEo7bhqEs6560Hyd4XaovZlO/k9V3hjVUF/zwW7KBVdSK4gIt/bzwS9MbR5qob+F5jusZsb0YQK2A=="
+     },
+     "bunyan": {
+-      "version": "1.8.13",
+-      "resolved": "https://registry.npmjs.org/bunyan/-/bunyan-1.8.13.tgz",
+-      "integrity": "sha512-4zO4iMxZeCpf+95ERsr83nwQr11o1KY2FLhX4wZ6kPXieIVYL3k9eX+N6vbHhFEK5h5O/qCQpfXt7N9VBAIvCA==",
++      "version": "1.8.14",
++      "resolved": "https://registry.npmjs.org/bunyan/-/bunyan-1.8.14.tgz",
++      "integrity": "sha512-LlahJUxXzZLuw/hetUQJmRgZ1LF6+cr5TPpRj6jf327AsiIq2jhYEH4oqUUkVKTor+9w2BT3oxVwhzE5lw9tcg==",
+       "dev": true,
+       "requires": {
+         "dtrace-provider": "~0.8",
+-        "moment": "^2.10.6",
++        "moment": "^2.19.3",
+         "mv": "~2",
+         "safe-json-stringify": "~1"
+       }
+@@ -5513,9 +5513,9 @@
+       "dev": true
+     },
+     "detox": {
+-      "version": "16.9.2",
+-      "resolved": "https://registry.npmjs.org/detox/-/detox-16.9.2.tgz",
+-      "integrity": "sha512-yi74zL3hHFRU131B5tgZiYh0hPWvpryntllAKEpxRGRRuz+11s2+TjpuS0M02jGOdDMFBk5BzcXFGM57FWbWNA==",
++      "version": "17.6.1",
++      "resolved": "https://registry.npmjs.org/detox/-/detox-17.6.1.tgz",
++      "integrity": "sha512-NPZabH3ixOdXCbDDQeRToUxXTN1kHiK7WhCCjH4YHtKNaprcYiYqPgIloEykauHvpgynebmyTBxOY6hDtsiO4Q==",
+       "dev": true,
+       "requires": {
+         "bunyan": "^1.8.12",
+@@ -5530,6 +5530,7 @@
+         "lodash": "^4.17.5",
+         "minimist": "^1.2.0",
+         "proper-lockfile": "^3.0.2",
++        "resolve-from": "^5.0.0",
+         "sanitize-filename": "^1.6.1",
+         "shell-utils": "^1.0.9",
+         "signal-exit": "^3.0.3",
+@@ -5539,7 +5540,8 @@
+         "which": "^1.3.1",
+         "ws": "^3.3.1",
+         "yargs": "^13.0.0",
+-        "yargs-parser": "^13.0.0"
++        "yargs-parser": "^13.0.0",
++        "yargs-unparser": "^1.6.3"
+       },
+       "dependencies": {
+         "ansi-regex": {
+@@ -5607,6 +5609,12 @@
+           "integrity": "sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==",
+           "dev": true
+         },
++        "resolve-from": {
++          "version": "5.0.0",
++          "resolved": "https://registry.npmjs.org/resolve-from/-/resolve-from-5.0.0.tgz",
++          "integrity": "sha512-qYg9KP24dD5qka9J47d0aVky0N+b4fTU89LN9iDnjB5waksiC49rvMB0PrUJQGoTmH50XPiqOvAjDfaijGxYZw==",
++          "dev": true
++        },
+         "signal-exit": {
+           "version": "3.0.3",
+           "resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-3.0.3.tgz",
+@@ -6351,6 +6359,23 @@
+         }
+       }
+     },
++    "flat": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/flat/-/flat-4.1.0.tgz",
++      "integrity": "sha512-Px/TiLIznH7gEDlPXcUD4KnBusa6kR6ayRUVcnEAbreRIuhkqow/mun59BuRXwoYk7ZQOLW1ZM05ilIvK38hFw==",
++      "dev": true,
++      "requires": {
++        "is-buffer": "~2.0.3"
++      },
++      "dependencies": {
++        "is-buffer": {
++          "version": "2.0.4",
++          "resolved": "https://registry.npmjs.org/is-buffer/-/is-buffer-2.0.4.tgz",
++          "integrity": "sha512-Kq1rokWXOPXWuaMAqZiJW4XxsmD9zGx9q4aePabbn3qCRGedtH7Cm+zV8WETitMfu1wdh+Rvd6w5egwSngUX2A==",
++          "dev": true
++        }
++      }
++    },
+     "for-in": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/for-in/-/for-in-1.0.2.tgz",
+@@ -7403,6 +7428,12 @@
+         "kind-of": "^3.0.2"
+       }
+     },
++    "is-plain-obj": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/is-plain-obj/-/is-plain-obj-1.1.0.tgz",
++      "integrity": "sha1-caUMhCnfync8kqOQpKA7OfzVHT4=",
++      "dev": true
++    },
+     "is-plain-object": {
+       "version": "2.0.4",
+       "resolved": "https://registry.npmjs.org/is-plain-object/-/is-plain-object-2.0.4.tgz",
+@@ -11762,9 +11793,9 @@
+       }
+     },
+     "moment": {
+-      "version": "2.27.0",
+-      "resolved": "https://registry.npmjs.org/moment/-/moment-2.27.0.tgz",
+-      "integrity": "sha512-al0MUK7cpIcglMv3YF13qSgdAIqxHTO7brRtaz3DlSULbqfazqkc5kEjNrLDOM7fsjshoFIihnU8snrP7zUvhQ==",
++      "version": "2.29.0",
++      "resolved": "https://registry.npmjs.org/moment/-/moment-2.29.0.tgz",
++      "integrity": "sha512-z6IJ5HXYiuxvFTI6eiQ9dm77uE0gyy1yXNApVHqTcnIKfY9tIwEjlzsZ6u1LQXvVgKeTnv9Xm7NDvJ7lso3MtA==",
+       "dev": true,
+       "optional": true
+     },
+@@ -15342,6 +15373,150 @@
+         "camelcase": "^4.1.0"
+       }
+     },
++    "yargs-unparser": {
++      "version": "1.6.3",
++      "resolved": "https://registry.npmjs.org/yargs-unparser/-/yargs-unparser-1.6.3.tgz",
++      "integrity": "sha512-xI32EGCq5mJiSCsQaEPLljD+R3Hq/VG08YGoLTOqu/gHAtCa2S4qPMG20ol4TpKWgSU7j3KMZHvSirNPK0DSjA==",
++      "dev": true,
++      "requires": {
++        "camelcase": "^5.3.1",
++        "decamelize": "^1.2.0",
++        "flat": "^4.1.0",
++        "is-plain-obj": "^1.1.0",
++        "yargs": "^14.2.3"
++      },
++      "dependencies": {
++        "ansi-regex": {
++          "version": "4.1.0",
++          "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-4.1.0.tgz",
++          "integrity": "sha512-1apePfXM1UOSqw0o9IiFAovVz9M5S1Dg+4TrDwfMewQ6p/rmMueb7tWZjQ1rx4Loy1ArBggoqGpfqqdI4rondg==",
++          "dev": true
++        },
++        "camelcase": {
++          "version": "5.3.1",
++          "resolved": "https://registry.npmjs.org/camelcase/-/camelcase-5.3.1.tgz",
++          "integrity": "sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==",
++          "dev": true
++        },
++        "cliui": {
++          "version": "5.0.0",
++          "resolved": "https://registry.npmjs.org/cliui/-/cliui-5.0.0.tgz",
++          "integrity": "sha512-PYeGSEmmHM6zvoef2w8TPzlrnNpXIjTipYK780YswmIP9vjxmd6Y2a3CB2Ks6/AU8NHjZugXvo8w3oWM2qnwXA==",
++          "dev": true,
++          "requires": {
++            "string-width": "^3.1.0",
++            "strip-ansi": "^5.2.0",
++            "wrap-ansi": "^5.1.0"
++          }
++        },
++        "find-up": {
++          "version": "3.0.0",
++          "resolved": "https://registry.npmjs.org/find-up/-/find-up-3.0.0.tgz",
++          "integrity": "sha512-1yD6RmLI1XBfxugvORwlck6f75tYL+iR0jqwsOrOxMZyGYqUuDhJ0l4AXdO1iX/FTs9cBAMEk1gWSEx1kSbylg==",
++          "dev": true,
++          "requires": {
++            "locate-path": "^3.0.0"
++          }
++        },
++        "get-caller-file": {
++          "version": "2.0.5",
++          "resolved": "https://registry.npmjs.org/get-caller-file/-/get-caller-file-2.0.5.tgz",
++          "integrity": "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==",
++          "dev": true
++        },
++        "locate-path": {
++          "version": "3.0.0",
++          "resolved": "https://registry.npmjs.org/locate-path/-/locate-path-3.0.0.tgz",
++          "integrity": "sha512-7AO748wWnIhNqAuaty2ZWHkQHRSNfPVIsPIfwEOWO22AmaoVrWavlOcMR5nzTLNYvp36X220/maaRsrec1G65A==",
++          "dev": true,
++          "requires": {
++            "p-locate": "^3.0.0",
++            "path-exists": "^3.0.0"
++          }
++        },
++        "p-locate": {
++          "version": "3.0.0",
++          "resolved": "https://registry.npmjs.org/p-locate/-/p-locate-3.0.0.tgz",
++          "integrity": "sha512-x+12w/To+4GFfgJhBEpiDcLozRJGegY+Ei7/z0tSLkMmxGZNybVMSfWj9aJn8Z5Fc7dBUNJOOVgPv2H7IwulSQ==",
++          "dev": true,
++          "requires": {
++            "p-limit": "^2.0.0"
++          }
++        },
++        "require-main-filename": {
++          "version": "2.0.0",
++          "resolved": "https://registry.npmjs.org/require-main-filename/-/require-main-filename-2.0.0.tgz",
++          "integrity": "sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==",
++          "dev": true
++        },
++        "string-width": {
++          "version": "3.1.0",
++          "resolved": "https://registry.npmjs.org/string-width/-/string-width-3.1.0.tgz",
++          "integrity": "sha512-vafcv6KjVZKSgz06oM/H6GDBrAtz8vdhQakGjFIvNrHA6y3HCF1CInLy+QLq8dTJPQ1b+KDUqDFctkdRW44e1w==",
++          "dev": true,
++          "requires": {
++            "emoji-regex": "^7.0.1",
++            "is-fullwidth-code-point": "^2.0.0",
++            "strip-ansi": "^5.1.0"
++          }
++        },
++        "strip-ansi": {
++          "version": "5.2.0",
++          "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-5.2.0.tgz",
++          "integrity": "sha512-DuRs1gKbBqsMKIZlrffwlug8MHkcnpjs5VPmL1PAh+mA30U0DTotfDZ0d2UUsXpPmPmMMJ6W773MaA3J+lbiWA==",
++          "dev": true,
++          "requires": {
++            "ansi-regex": "^4.1.0"
++          }
++        },
++        "wrap-ansi": {
++          "version": "5.1.0",
++          "resolved": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-5.1.0.tgz",
++          "integrity": "sha512-QC1/iN/2/RPVJ5jYK8BGttj5z83LmSKmvbvrXPNCLZSEb32KKVDJDl/MOt2N01qU2H/FkzEa9PKto1BqDjtd7Q==",
++          "dev": true,
++          "requires": {
++            "ansi-styles": "^3.2.0",
++            "string-width": "^3.0.0",
++            "strip-ansi": "^5.0.0"
++          }
++        },
++        "y18n": {
++          "version": "4.0.0",
++          "resolved": "https://registry.npmjs.org/y18n/-/y18n-4.0.0.tgz",
++          "integrity": "sha512-r9S/ZyXu/Xu9q1tYlpsLIsa3EeLXXk0VwlxqTcFRfg9EhMW+17kbt9G0NrgCmhGb5vT2hyhJZLfDGx+7+5Uj/w==",
++          "dev": true
++        },
++        "yargs": {
++          "version": "14.2.3",
++          "resolved": "https://registry.npmjs.org/yargs/-/yargs-14.2.3.tgz",
++          "integrity": "sha512-ZbotRWhF+lkjijC/VhmOT9wSgyBQ7+zr13+YLkhfsSiTriYsMzkTUFP18pFhWwBeMa5gUc1MzbhrO6/VB7c9Xg==",
++          "dev": true,
++          "requires": {
++            "cliui": "^5.0.0",
++            "decamelize": "^1.2.0",
++            "find-up": "^3.0.0",
++            "get-caller-file": "^2.0.1",
++            "require-directory": "^2.1.1",
++            "require-main-filename": "^2.0.0",
++            "set-blocking": "^2.0.0",
++            "string-width": "^3.0.0",
++            "which-module": "^2.0.0",
++            "y18n": "^4.0.0",
++            "yargs-parser": "^15.0.1"
++          }
++        },
++        "yargs-parser": {
++          "version": "15.0.1",
++          "resolved": "https://registry.npmjs.org/yargs-parser/-/yargs-parser-15.0.1.tgz",
++          "integrity": "sha512-0OAMV2mAZQrs3FkNpDQcBk1x5HXb8X4twADss4S0Iuk+2dGnLOE/fRHrsYm542GduMveyA77OF4wrNJuanRCWw==",
++          "dev": true,
++          "requires": {
++            "camelcase": "^5.0.0",
++            "decamelize": "^1.2.0"
++          }
++        }
++      }
++    },
+     "yazl": {
+       "version": "2.5.1",
+       "resolved": "https://registry.npmjs.org/yazl/-/yazl-2.5.1.tgz",
+diff --git a/package.json b/package.json
+index 127855e..6fd3772 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.2",
++  "version": "5.0.5",
+   "private": true,
+   "scripts": {
+     "start": "node node_modules/react-native/local-cli/cli.js start",
+@@ -48,7 +48,7 @@
+     "@babel/core": "^7.5.4",
+     "@babel/runtime": "^7.5.4",
+     "babel-jest": "^25.2.6",
+-    "detox": "16.9.2",
++    "detox": "17.6.1",
+     "jest": "^25.2.7",
+     "jetifier": "^1.6.3",
+     "metro-react-native-babel-preset": "^0.58.0",

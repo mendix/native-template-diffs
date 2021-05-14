@@ -1,0 +1,103 @@
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index b4095ba..8acb126 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -28,7 +28,8 @@
+       android:roundIcon="@mipmap/ic_launcher_round"
+       android:allowBackup="false"
+       android:largeHeap="true"
+-      android:theme="@style/AppTheme">
++      android:theme="@style/AppTheme"
++      android:requestLegacyExternalStorage="true">
+       <activity
+         android:name="com.mendix.nativetemplate.MainActivity"
+         android:label="@string/app_name"
+diff --git a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+index 9f926e3..cee16f9 100644
+--- a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
++++ b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+@@ -48,6 +48,60 @@
+       "filename" : "app@3x.png",
+       "scale" : "3x"
+     },
++    {
++      "filename" : "notification@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "20x20"
++    },
++    {
++      "filename" : "notification@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "20x20"
++    },
++    {
++      "filename" : "settings@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "29x29"
++    },
++    {
++      "filename" : "settings@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "29x29"
++    },
++    {
++      "filename" : "spotlight@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "40x40"
++    },
++    {
++      "filename" : "spotlight@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "40x40"
++    },
++    {
++      "filename" : "ipadapp@1x.png",
++      "idiom" : "ipad",
++      "scale" : "1x",
++      "size" : "76x76"
++    },
++    {
++      "filename" : "ipadapp@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "76x76"
++    },
++    {
++      "filename" : "ipadproapp@2x.png",
++      "idiom" : "ipad",
++      "scale" : "2x",
++      "size" : "83.5x83.5"
++    },
+     {
+       "size" : "1024x1024",
+       "idiom" : "ios-marketing",
+diff --git a/package-lock.json b/package-lock.json
+index ba3023c..bd3b4c3 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.4",
++  "version": "5.0.5",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index a83005b..6fd3772 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.4",
++  "version": "5.0.5",
+   "private": true,
+   "scripts": {
+     "start": "node node_modules/react-native/local-cli/cli.js start",

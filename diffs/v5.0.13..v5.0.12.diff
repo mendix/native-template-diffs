@@ -1,0 +1,68 @@
+diff --git a/package-lock.json b/package-lock.json
+index a3b08a9..0af6f48 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.13",
++  "version": "5.0.12",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index e11a881..957d039 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.0.13",
++  "version": "5.0.12",
+   "private": true,
+   "scripts": {
+     "postinstall": "patch-package && jetify"
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+index addcda4..f2639bc 100644
+--- a/patches/react-native-firebase+5.6.0.patch
++++ b/patches/react-native-firebase+5.6.0.patch
+@@ -1,8 +1,8 @@
+ diff --git a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-index 24f472e..085f926 100644
++index 24f472e..f32911f 100644
+ --- a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+ +++ b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-@@ -155,24 +155,33 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
++@@ -155,24 +155,30 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
+    public Map<String, Object> getConstants() {
+      Map<String, Object> constants = new HashMap<>();
+      List<Map<String, Object>> appMapsList = new ArrayList<>();
+@@ -47,9 +47,6 @@ index 24f472e..085f926 100644
+ +      }
+ +    } catch (Exception e) {
+ +      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+-+      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+-+    } catch (NoClassDefFoundError e) {
+-+      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+ +      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+      }
+  
+diff --git a/react-native.config.js b/react-native.config.js
+index ca431b4..67421b6 100644
+--- a/react-native.config.js
++++ b/react-native.config.js
+@@ -23,13 +23,6 @@ module.exports = {
+                 android: null,
+                 ios: null,
+             },
+-        },
+-        'react-native-video': {
+-            platforms: {
+-              android: {
+-                sourceDir: '../node_modules/react-native-video/android-exoplayer',
+-              },
+-            },
+-        },
++        }
+     },
+ };

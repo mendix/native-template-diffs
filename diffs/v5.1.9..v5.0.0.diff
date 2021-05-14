@@ -1,0 +1,3652 @@
+diff --git a/.github/workflows/android-build-custom-dev-app.yml b/.github/workflows/android-build-custom-dev-app.yml
+index 4fcffda..35c7726 100644
+--- a/.github/workflows/android-build-custom-dev-app.yml
++++ b/.github/workflows/android-build-custom-dev-app.yml
+@@ -1,10 +1,8 @@
+-name: '[Android] Custom Dev App CI'
++name: Android Custom Dev App CI
+ 
+ on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master, release/*]
++    branches: [ master ]
+ 
+ jobs:     
+   build:
+diff --git a/.github/workflows/ios-build-custom-dev-app.yml b/.github/workflows/ios-build-custom-dev-app.yml
+index 5717a36..790245d 100644
+--- a/.github/workflows/ios-build-custom-dev-app.yml
++++ b/.github/workflows/ios-build-custom-dev-app.yml
+@@ -1,10 +1,8 @@
+-name: '[iOS] Custom Dev App CI'
++name: IOS Custom Dev App CI
+ 
+ on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+   pull_request:
+-    branches: [master, release/*]
++    branches: [master]
+ 
+ jobs:
+   build:
+diff --git a/.github/workflows/windows-test-npm-installation.yml b/.github/workflows/windows-test-npm-installation.yml
+deleted file mode 100644
+index a3760cd..0000000
+--- a/.github/workflows/windows-test-npm-installation.yml
++++ /dev/null
+@@ -1,19 +0,0 @@
+-name: '[Windows] Test npm installation'
+-
+-on:
+-  schedule: 
+-    - cron: '0 0 * * *'
+-  pull_request:
+-    branches: [master, release/*]
+-
+-jobs:
+-  build:
+-    runs-on: windows-latest
+-
+-    steps:
+-      - uses: actions/checkout@v2
+-      - uses: actions/setup-node@v2
+-        with:
+-          node-version: '14'
+-          architecture: 'x64'
+-      - run: npm install
+\ No newline at end of file
+diff --git a/.gitignore b/.gitignore
+index c006c72..a6a890c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -35,7 +35,6 @@ local.properties
+ # iOS
+ # 
+ ios/Pods/
+-ios/MendixAppDelegate.m
+ 
+ # node.js
+ #
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+index 54c3058..a824ec9 100644
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -100,10 +100,17 @@ project.ext.vectoricons = [
+ dependencies {
+     implementation project(':react-native-splash-screen')
+     implementation project(':react-native-code-push')
++    implementation project(":react-native-firebase")
+     implementation project(":mendixnative-release")
+     implementation fileTree(dir: "libs", include: ["*.jar"])
+     implementation "com.facebook.react:react-native:+"  // From node_modules
+     implementation "org.webkit:android-jsc:r245459"
++    if (googleServicesEnabled) {
++        implementation "com.google.android.gms:play-services-base:${project.playServicesVersion}"
++        implementation "com.google.firebase:firebase-core:17.2.3"
++        implementation "com.google.firebase:firebase-messaging:20.1.2"
++        implementation 'me.leolin:ShortcutBadger:1.1.22@aar'
++    }
+     devImplementation "androidx.constraintlayout:constraintlayout:2.0.0-beta2"
+     devImplementation "me.dm7.barcodescanner:zxing:1.9.13"
+ 
+@@ -128,14 +135,11 @@ task copyDownloadableDepsToLibs(type: Copy) {
+     into "libs"
+ }
+ 
+-apply from: file("../mendixnative-release/mendix.gradle"); applyMendixGradle(project)
+ apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+ apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+-
+-// Disable till dependencies are ironed out
+-try {
++if (googleServicesEnabled) {
++    apply plugin: "com.google.gms.google-services"
+     com.google.gms.googleservices.GoogleServicesPlugin.config.disableVersionCheck = true
+-} catch (e) {
+ }
+ 
+ boolean hasGoogleServicesSupport() {
+diff --git a/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java
+index 7fb178c..fa5d085 100644
+--- a/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/appstore/java/com/mendix/nativetemplate/MainActivity.java
+@@ -12,7 +12,6 @@ import com.mendix.mendixnative.react.MxConfiguration;
+ public class MainActivity extends MendixReactActivity {
+     @Override
+     protected void onCreate(@Nullable Bundle savedInstanceState) {
+-        this.getLifecycle().addObserver(new MendixActivityObserver(this));
+         Boolean hasDeveloperSupport = ((MainApplication) getApplication()).getUseDeveloperSupport();
+         mendixApp = new MendixApp(AppUrl.getUrlFromResource(this), MxConfiguration.WarningsFilter.none, hasDeveloperSupport);
+         super.onCreate(savedInstanceState);
+diff --git a/android/app/src/dev/AndroidManifest.xml b/android/app/src/dev/AndroidManifest.xml
+index be7074e..074b971 100644
+--- a/android/app/src/dev/AndroidManifest.xml
++++ b/android/app/src/dev/AndroidManifest.xml
+@@ -15,6 +15,6 @@
+             android:name="com.mendix.mendixnative.activity.MendixReactActivity"
+             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+             android:launchMode="singleTop"
+-            android:windowSoftInputMode="adjustPan"></activity>
++            android:windowSoftInputMode="adjustResize"></activity>
+     </application>
+ </manifest>
+diff --git a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+index 8d64761..e3d7c97 100644
+--- a/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
++++ b/android/app/src/dev/java/com/mendix/nativetemplate/MainActivity.java
+@@ -42,8 +42,6 @@ import okhttp3.OkHttpClient;
+ import okhttp3.Request;
+ import okhttp3.Response;
+ 
+-import static com.mendix.mendixnative.activity.MendixReactActivity.MENDIX_APP_INTENT_KEY;
+-
+ public class MainActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
+     static private int CAMERA_REQUEST = 1;
+     private Executor httpExecutor = Executors.newSingleThreadExecutor();
+@@ -76,12 +74,6 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
+ 
+         appUrl.setText(appPreferences.getAppUrl());
+         devModeCheckBox.setChecked(appPreferences.isDevModeEnabled());
+-
+-        // This check is required for deep link to work.
+-        // Changes here will affect deep linking functionality
+-        if (getIntent().getSerializableExtra(MENDIX_APP_INTENT_KEY) != null) {
+-            launchApp(appPreferences.getAppUrl());
+-        }
+     }
+ 
+     @RequiresApi(api = Build.VERSION_CODES.M)
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index a1efd74..b4095ba 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -28,14 +28,13 @@
+       android:roundIcon="@mipmap/ic_launcher_round"
+       android:allowBackup="false"
+       android:largeHeap="true"
+-      android:theme="@style/AppTheme"
+-      android:requestLegacyExternalStorage="true">
++      android:theme="@style/AppTheme">
+       <activity
+         android:name="com.mendix.nativetemplate.MainActivity"
+         android:label="@string/app_name"
+         android:screenOrientation="portrait"
+         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+-        android:windowSoftInputMode="adjustPan">
++        android:windowSoftInputMode="adjustResize">
+         <intent-filter>
+             <action android:name="android.intent.action.MAIN" />
+             <category android:name="android.intent.category.LAUNCHER" />
+diff --git a/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java b/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java
+index b8ac880..819ef6b 100644
+--- a/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java
++++ b/android/app/src/main/java/com/mendix/nativetemplate/MainApplication.java
+@@ -12,8 +12,13 @@ import com.microsoft.codepush.react.CodePush;
+ 
+ import org.devio.rn.splashscreen.SplashScreen;
+ 
++import java.util.Arrays;
+ import java.util.List;
+ 
++import io.invertase.firebase.RNFirebasePackage;
++import io.invertase.firebase.messaging.RNFirebaseMessagingPackage;
++import io.invertase.firebase.notifications.RNFirebaseNotificationsPackage;
++
+ public class MainApplication extends MendixReactApplication {
+     @Override
+     public boolean getUseDeveloperSupport() {
+@@ -23,12 +28,19 @@ public class MainApplication extends MendixReactApplication {
+     @Override
+     public List<ReactPackage> getPackages() {
+         List<ReactPackage> packages = new PackageList(this).getPackages();
+-        packages.addAll(new MendixPackageList(this).getPackages());
+ 
+         // Packages that cannot be autolinked yet can be added manually here, for example:
+         // packages.add(new MyReactNativePackage());
+         packages.add(new CodePush(getCodePushKey(), getApplicationContext(), BuildConfig.DEBUG));
+ 
++        if (BuildConfig.USE_FIREBASE) {
++            packages.addAll(Arrays.asList(
++                    new RNFirebaseMessagingPackage(),
++                    new RNFirebaseNotificationsPackage(),
++                    new RNFirebasePackage()
++            ));
++        }
++
+         return packages;
+     }
+ 
+diff --git a/android/build.gradle b/android/build.gradle
+index e196fae..cb92709 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -4,8 +4,8 @@ buildscript {
+     ext {
+         buildToolsVersion = "28.0.3"
+         minSdkVersion = 21
+-        compileSdkVersion = 29
+-        targetSdkVersion = 29
++        compileSdkVersion = 28
++        targetSdkVersion = 28
+         kotlinVersion = "1.3.50"
+         excludeAppGlideModule = true
+         playServicesVersion = "16.1.0"
+@@ -20,7 +20,7 @@ buildscript {
+     dependencies {
+         classpath "com.android.tools.build:gradle:3.4.2"
+         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+-        apply from: file("./mendixnative-release/mendix.gradle"); applyMendixClassPaths(project)
++        classpath "com.google.gms:google-services:4.2.0"
+ 
+         // NOTE: Do not place your application dependencies here; they belong
+         // in the individual module build.gradle files
+diff --git a/android/mendixnative-release/mendix.gradle b/android/mendixnative-release/mendix.gradle
+deleted file mode 100644
+index ee91851..0000000
+--- a/android/mendixnative-release/mendix.gradle
++++ /dev/null
+@@ -1,438 +0,0 @@
+-import groovy.json.JsonSlurper
+-
+-def LOG_PREFIX = ":Mendix: "
+-
+-def rootDir = buildscript.sourceFile.toString().split("android(/|\\\\)mendixnative-release")[0]
+-def cliBinPath = "${rootDir}/node_modules/.bin/react-native${System.properties['os.name'].toLowerCase().contains('windows') ? ".cmd" : ""}"
+-
+-def generatedFilePackage = "com.mendix.nativetemplate"
+-def mainActivityObserverFileName = "MendixActivityObserver.java"
+-def mainActivityObserverTemplate = """package $generatedFilePackage;
+-
+-import android.content.Context;
+-
+-import androidx.lifecycle.Lifecycle;
+-import androidx.lifecycle.LifecycleObserver;
+-import androidx.lifecycle.OnLifecycleEvent;
+-{{imports}}
+-
+-public class MendixActivityObserver implements LifecycleObserver {
+-    private final Context context;
+-
+-    public MendixActivityObserver(Context activity) {
+-        this.context = activity;
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+-    void onCreate() {
+-        {{onCreate}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+-    void onResume() {
+-        {{onResume}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+-    void onStart() {
+-      {{onStart}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+-    void onPause() {
+-        {{onPause}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+-    void onStop() {
+-        {{onStop}}
+-    }
+-
+-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+-    void onDestroy() {
+-        {{onDestroy}}
+-    }
+-}
+-"""
+-def mendixPackageListFileName = "MendixPackageList.java"
+-def mendixPackageListTemplate = """package $generatedFilePackage;
+-
+-import android.app.Application;
+-import android.content.Context;
+-import android.content.res.Resources;
+-
+-import com.facebook.react.ReactPackage;
+-import com.facebook.react.shell.MainPackageConfig;
+-import com.facebook.react.shell.MainReactPackage;
+-import java.util.Arrays;
+-import java.util.ArrayList;
+-
+-{{imports}}
+-
+-public class MendixPackageList {
+-  private Application application;
+-  
+-  public MendixPackageList(Application application) {
+-    this.application = application;
+-  }
+-
+-  private Resources getResources() {
+-    return this.getApplication().getResources();
+-  }
+-
+-  private Application getApplication() {
+-    return this.application;
+-  }
+-
+-  private Context getApplicationContext() {
+-    return this.getApplication().getApplicationContext();
+-  }
+-
+-  public ArrayList<ReactPackage> getPackages() {
+-    return new ArrayList<>(Arrays.<ReactPackage>asList(
+-      {{packageClassInstances}}
+-    ));
+-  }
+-}
+-"""
+-
+-class MendixModules {
+-    private static String LINE_ENDING_CHAR = "\n"
+-
+-    private String cliBinPath
+-    private String rootDir
+-    private String logPrefix
+-    private Logger logger
+-    private ArrayList<HashMap<String, String>> reactNativeModules
+-    private Map dependenciesConfig = [:]
+-    private File capabilitiesConfigFile
+-    private File projectCapabilitiesFile
+-    private File nodeModulesDependenciesConfigFile
+-
+-    MendixModules(File capabilitiesConfigFile, File nodeModulesDependenciesConfigFile, File projectCapabilitiesFile, String cliBinPath, String rootDir, Logger logger, String logPrefix) {
+-        this.logger = logger
+-        this.rootDir = rootDir
+-        this.cliBinPath = cliBinPath
+-        this.logPrefix = logPrefix
+-        this.capabilitiesConfigFile = capabilitiesConfigFile
+-        this.nodeModulesDependenciesConfigFile = nodeModulesDependenciesConfigFile
+-        this.projectCapabilitiesFile = projectCapabilitiesFile
+-
+-        def (nativeModules) = this.getReactNativeConfig()
+-        this.reactNativeModules = nativeModules
+-        parseDependenciesConfig()
+-    }
+-
+-    void printDependencies() {
+-        this.reactNativeModules.each {
+-            logDebug(it["name"])
+-        }
+-    }
+-
+-    void parseDependenciesConfig() {
+-        def dependenciesConfig = [:]
+-        def capabilitiesConfig = [:]
+-
+-        try {
+-            capabilitiesConfig = new JsonSlurper().parse(this.capabilitiesConfigFile)
+-            def projectCapabilities = new JsonSlurper().parse(this.projectCapabilitiesFile)
+-            capabilitiesConfig.retainAll { capabilityConfig ->
+-                projectCapabilities.find { enabledCapability ->
+-                    enabledCapability.key == capabilityConfig.key && enabledCapability.value == true
+-                } && capabilityConfig.value["android"] != null
+-            }
+-        } catch (ignored) {
+-            this.logLifecycle("Failed parsing the capabilities file. Error?")
+-        }
+-
+-        if (this.nodeModulesDependenciesConfigFile.exists()) {
+-            try {
+-                dependenciesConfig = new JsonSlurper().parse(this.nodeModulesDependenciesConfigFile)
+-                (dependenciesConfig as Map).retainAll { dependencyConfig ->
+-                    this.reactNativeModules.find { nativeModule ->
+-                        nativeModule.get("name") == dependencyConfig.key
+-                    } && dependencyConfig.value["android"] != null
+-                }
+-            } catch (ignored) {
+-                this.logLifecycle("Failed parsing the configuration for unlinked node_modules. Error?")
+-            }
+-        }
+-
+-        this.dependenciesConfig = capabilitiesConfig + dependenciesConfig
+-        printDependencies()
+-    }
+-
+-    void generateMainActivityObserver(File outDir, String fileName, String template) {
+-        def activityImports = []
+-        def activityOnCreateEntries = []
+-        def activityOnStartEntries = []
+-        def activityOnResumeEntries = []
+-        def activityOnPauseEntries = []
+-        def activityOnStopEntries = []
+-        def activityOnDestroyEntries = []
+-
+-        dependenciesConfig.each {
+-            def mainActivityDelegateEntry = it.value["android"]["MainActivity"]
+-            if (!mainActivityDelegateEntry)
+-                return
+-
+-            def imports = mainActivityDelegateEntry.get("imports")
+-            if (imports)
+-                activityImports.addAll(imports)
+-
+-            def onCreateEntries = mainActivityDelegateEntry.get("onCreate")
+-            if (onCreateEntries)
+-                activityOnCreateEntries.addAll(onCreateEntries)
+-
+-            def onStartEntries = mainActivityDelegateEntry.get("onStart")
+-            if (onStartEntries)
+-                activityOnStartEntries.addAll(onStartEntries)
+-
+-            def onResumeEntries = mainActivityDelegateEntry.get("onResume")
+-            if (onResumeEntries)
+-                activityOnResumeEntries.addAll(onResumeEntries)
+-
+-            def onPauseEntries = mainActivityDelegateEntry.get("onPause")
+-            if (onPauseEntries)
+-                activityOnPauseEntries.addAll(onPauseEntries)
+-
+-            def onStopEntries = mainActivityDelegateEntry.get("onStop")
+-            if (onStopEntries)
+-                activityOnStopEntries.addAll(onStopEntries)
+-
+-            def onDestroyEntries = mainActivityDelegateEntry.get("onDestroy")
+-            if (onDestroyEntries)
+-                activityOnDestroyEntries.addAll(onDestroyEntries)
+-        }
+-
+-        String CODE_PADDING = "${LINE_ENDING_CHAR}        "
+-        String generatedFileContents = template
+-                .replace("{{imports}}", activityImports.join(LINE_ENDING_CHAR))
+-                .replace("{{onCreate}}", activityOnCreateEntries.join(CODE_PADDING))
+-                .replace("{{onStart}}", activityOnStartEntries.join(CODE_PADDING))
+-                .replace("{{onResume}}", activityOnResumeEntries.join(CODE_PADDING))
+-                .replace("{{onPause}}", activityOnPauseEntries.join(CODE_PADDING))
+-                .replace("{{onStop}}", activityOnStopEntries.join(CODE_PADDING))
+-                .replace("{{onDestroy}}", activityOnDestroyEntries.join(CODE_PADDING))
+-
+-        outDir.mkdirs()
+-        new FileTreeBuilder(outDir).file(fileName).newWriter().withWriter {
+-            w ->
+-                w << generatedFileContents
+-        }
+-    }
+-
+-    void generateMendixPackageList(File outDir, String fileName, String template) {
+-        String CODE_PADDING = "${LINE_ENDING_CHAR}      "
+-        def imports = []
+-        def entries = []
+-        def entrySeparator = "," + CODE_PADDING
+-        dependenciesConfig.each {
+-            def packageListEntry = it.value["android"]["packageListEntries"]
+-            if (packageListEntry) {
+-                def importsEntry = packageListEntry["imports"]
+-                def packageClassInstances = packageListEntry["packageClassInstances"]
+-                if (importsEntry)
+-                    imports.addAll(importsEntry)
+-                if (packageClassInstances)
+-                    entries.addAll(packageClassInstances)
+-            }
+-        }
+-
+-        String generatedFileContents = template.replace("{{imports}}", imports.join(CODE_PADDING)).replace("{{packageClassInstances}}", entries.join(entrySeparator))
+-
+-        outDir.mkdirs()
+-        new FileTreeBuilder(outDir).file(fileName).newWriter().withWriter {
+-            w ->
+-                w << generatedFileContents
+-        }
+-    }
+-
+-    void addClassPaths(Project project) {
+-        project.buildscript {
+-            dependencies {
+-                dependenciesConfig.each {
+-                    def gradle = (it.value as Object)["android"]["gradle"]
+-                    if (!gradle) {
+-                        return
+-                    }
+-                    def customClassPaths = gradle.get("classpaths") as ArrayList<String>
+-                    customClassPaths.each { customClassPath ->
+-                        this.logLifecycle("Adding classPath ${customClassPath}")
+-                        classpath(customClassPath)
+-                    }
+-                }
+-            }
+-        }
+-    }
+-
+-    void addExtraDependencies(Project project) {
+-        project.dependencies {
+-            dependenciesConfig.each {
+-                def dependencies = it.value["android"]["externalDependencies"] as ArrayList<String>
+-                dependencies.each { dependency ->
+-                    this.logLifecycle("Registering extra library ${dependency}")
+-                    implementation(dependency)
+-                }
+-            }
+-        }
+-    }
+-
+-    void addAndroidPlugins(Project project) {
+-        dependenciesConfig.each {
+-            def gradleConfig = it.value["android"]["gradle"]
+-            if (!gradleConfig)
+-                return
+-
+-            def dependencies = gradleConfig["plugins"] as ArrayList<String>
+-            if (!dependencies)
+-                return
+-
+-            dependencies.each { plugin ->
+-                this.logLifecycle("Adding plugin ${plugin}")
+-                project.getPluginManager().apply(plugin)
+-            }
+-        }
+-    }
+-
+-    void logDebug(String message) {
+-        this.logger.debug("${this.logPrefix}${message}")
+-    }
+-
+-    void logLifecycle(String message) {
+-        this.logger.lifecycle("${this.logPrefix}${message}")
+-    }
+-
+-    void logError(String message) {
+-        this.logger.error("${this.logPrefix}${message}")
+-    }
+-
+-    /**
+-     * Runs a specified command using Runtime exec() in a specified directory.
+-     * Throws when the command result is empty.
+-     */
+-    String getCommandOutput(String[] command) {
+-        try {
+-            def output = ""
+-            def cmdProcess = Runtime.getRuntime().exec(command)
+-            def bufferedReader = new BufferedReader(new InputStreamReader(cmdProcess.getInputStream()))
+-            def buff = ""
+-            def readBuffer = new StringBuffer()
+-            while ((buff = bufferedReader.readLine()) != null) {
+-                readBuffer.append(buff)
+-            }
+-            output = readBuffer.toString()
+-            if (!output) {
+-                this.logger.error("${logPrefix}Unexpected empty result of running '${command}' command.")
+-                def bufferedErrorReader = new BufferedReader(new InputStreamReader(cmdProcess.getErrorStream()))
+-                def errBuff = ""
+-                def readErrorBuffer = new StringBuffer()
+-                while ((errBuff = bufferedErrorReader.readLine()) != null) {
+-                    readErrorBuffer.append(errBuff)
+-                }
+-                throw new Exception(readErrorBuffer.toString())
+-            }
+-            return output
+-        } catch (Exception exception) {
+-            this.logError("Running '${command}' command failed.")
+-            throw exception
+-        }
+-    }
+-
+-    /**
+-     * Runs a process to call the React Native CLI Config command and parses the output
+-     */
+-    ArrayList<HashMap<String, String>> getReactNativeConfig() {
+-        if (this.reactNativeModules != null) return this.reactNativeModules
+-
+-        ArrayList<HashMap<String, String>> reactNativeModules = new ArrayList<HashMap<String, String>>()
+-
+-        String[] reactNativeConfigCommand = [this.cliBinPath, "config"]
+-        def reactNativeConfigOutput = this.getCommandOutput(reactNativeConfigCommand)
+-
+-        def json
+-        try {
+-            json = new JsonSlurper().parseText(reactNativeConfigOutput)
+-        } catch (Exception exception) {
+-            throw new Exception("Calling `${reactNativeConfigCommand}` finished with an exception. Error message: ${exception.toString()}. Output: ${reactNativeConfigOutput}");
+-        }
+-        def dependencies = json["dependencies"]
+-        def project = json["project"]["android"]
+-
+-        if (project == null) {
+-            throw new Exception("React Native CLI failed to determine Android project configuration. This is likely due to misconfiguration. Config output:\n${json.toMapString()}")
+-        }
+-
+-        dependencies.each { name, value ->
+-            def platformsConfig = value["platforms"];
+-            def androidConfig = platformsConfig["android"]
+-
+-            if (androidConfig != null && androidConfig["sourceDir"] != null) {
+-                this.logger.info("${logPrefix}Automatically adding native module '${name}'")
+-
+-                HashMap reactNativeModuleConfig = new HashMap<String, String>()
+-                reactNativeModuleConfig.put("name", name)
+-                reactNativeModuleConfig.put("nameCleansed", name.replaceAll('^@([\\w-]+)/', '$1_'))
+-                reactNativeModuleConfig.put("androidSourceDir", androidConfig["sourceDir"])
+-                reactNativeModuleConfig.put("packageInstance", androidConfig["packageInstance"])
+-                reactNativeModuleConfig.put("packageImportPath", androidConfig["packageImportPath"])
+-                this.logger.trace("${logPrefix}'${name}': ${reactNativeModuleConfig.toMapString()}")
+-
+-                reactNativeModules.add(reactNativeModuleConfig)
+-            } else {
+-                this.logger.info("${logPrefix}Skipping native module '${name}'")
+-            }
+-        }
+-
+-        return [reactNativeModules, json["project"]["android"]["packageName"]];
+-    }
+-}
+-
+-def generatedSrcDir = new File(buildDir, "generated/mendix/src/main/java")
+-def generatedCodeDir = new File(generatedSrcDir, generatedFilePackage.replace('.', '/'))
+-
+-def capabilitiesConfig = new File("${rootDir}capabilities-setup-config.json")
+-def unlinkedDependenciesConfigFile = new File("${rootDir}unlinked-dependency-config.json")
+-def capabilitiesFile = new File("${rootDir}capabilities.android.json")
+-def mendixModules = new MendixModules(capabilitiesConfig, unlinkedDependenciesConfigFile, capabilitiesFile, cliBinPath, rootDir, logger, LOG_PREFIX)
+-
+-def logLifecycle = { String message -> logger.lifecycle("${LOG_PREFIX}${message}") }
+-
+-
+-ext.applyMendixGradle = { Project project ->
+-    logLifecycle("Registering extra dependencies")
+-    mendixModules.addExtraDependencies(project)
+-
+-    logLifecycle("Registering plugins")
+-    mendixModules.addAndroidPlugins(project)
+-    task generateMendixDependencies {
+-        doLast {
+-            logLifecycle("Executing Mendix Module Generator")
+-            logLifecycle("App root: ${rootDir}")
+-            logLifecycle("CLI path: ${cliBinPath}")
+-
+-            logLifecycle("Generating ${mainActivityObserverFileName}")
+-            mendixModules.generateMainActivityObserver(generatedCodeDir, mainActivityObserverFileName, mainActivityObserverTemplate)
+-
+-            logLifecycle("Generating ${mendixPackageListFileName}")
+-            mendixModules.generateMendixPackageList(generatedCodeDir, mendixPackageListFileName, mendixPackageListTemplate)
+-        }
+-    }
+-
+-    preBuild.dependsOn generateMendixDependencies
+-
+-    android {
+-        sourceSets {
+-            main {
+-                java {
+-                    srcDirs += generatedSrcDir
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-ext.applyMendixClassPaths = { Project project ->
+-    logLifecycle("Registering class paths")
+-    mendixModules.addClassPaths(project)
+-}
+diff --git a/android/settings.gradle b/android/settings.gradle
+index dffa19f..cbe16c1 100644
+--- a/android/settings.gradle
++++ b/android/settings.gradle
+@@ -1,6 +1,8 @@
+ rootProject.name = 'nativeTemplate'
+ apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
+ 
++include ':react-native-firebase'
++project(':react-native-firebase').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-firebase/android')
+ include ':react-native-code-push'
+ project(':react-native-code-push').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-code-push/android/app')
+ include ':react-native-splash-screen'
+diff --git a/appcenter-build-config.json b/appcenter-build-config.json
+index 2441cbb..839fc7b 100644
+--- a/appcenter-build-config.json
++++ b/appcenter-build-config.json
+@@ -3,14 +3,10 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [
+-      { "name": "CODE_PUSH_KEY", "value": "" },
+-      { "name": "IS_DEV_APP", "value": false },
+-      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
+-    ],
++    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
+     "toolsets": {
+       "xcode": {
+-        "xcodeVersion": "12.0",
++        "xcodeVersion": "11.5",
+         "automaticSigning": false,
+         "projectOrWorkspacePath": "ios/NativeTemplate.xcworkspace",
+         "podfilePath": "ios/Podfile",
+@@ -19,7 +15,7 @@
+       "javascript": {
+         "packageJsonPath": "package.json",
+         "runTests": false,
+-        "nodeVersion": "12.x"
++        "nodeVersion": "10.x"
+       },
+       "buildscripts": {
+         "package.json": {
+@@ -33,11 +29,7 @@
+     "trigger": "manual",
+     "testEnabled": false,
+     "signed": false,
+-    "environmentVariables": [
+-      { "name": "CODE_PUSH_KEY", "value": "" },
+-      { "name": "IS_DEV_APP", "value": false },
+-      { "name": "SUPPORTS_MOBILE_TOOLKIT", "value": false }
+-    ],
++    "environmentVariables": [{ "name": "CODE_PUSH_KEY", "value": "" }, { "name": "IS_DEV_APP", "value": false }],
+     "toolsets": {
+       "android": {
+         "module": "app",
+@@ -51,7 +43,7 @@
+       "javascript": {
+         "packageJsonPath": "package.json",
+         "runTests": false,
+-        "nodeVersion": "12.x"
++        "nodeVersion": "10.x"
+       },
+       "buildscripts": {
+         "package.json": {
+diff --git a/appcenter-post-clone.sh b/appcenter-post-clone.sh
+index b827ca0..61fe2dd 100755
+--- a/appcenter-post-clone.sh
++++ b/appcenter-post-clone.sh
+@@ -1,5 +1,4 @@
+ #!/usr/bin/env bash
+-set -e
+ 
+ # Untar bundle resources
+ if [ -f "./android/res.tar.gz" ]; then 
+diff --git a/appcenter-pre-build.sh b/appcenter-pre-build.sh
+index 87a1d40..76e4a44 100755
+--- a/appcenter-pre-build.sh
++++ b/appcenter-pre-build.sh
+@@ -1,10 +1,4 @@
+ #!/usr/bin/env bash
+-set -e
+-
+-if [[ $SUPPORTS_MOBILE_TOOLKIT == True ]]; then
+-    echo "Configuring template with mobile toolkit"
+-    npm run configure
+-fi
+ 
+ INFO_PLIST=$APPCENTER_SOURCE_DIRECTORY/ios/$APPCENTER_XCODE_SCHEME/Info.plist
+ if [[ -e "$INFO_PLIST" && $IS_DEV_APP == False ]]; then
+diff --git a/capabilities-setup-config.json b/capabilities-setup-config.json
+deleted file mode 100644
+index 0ba8ec2..0000000
+--- a/capabilities-setup-config.json
++++ /dev/null
+@@ -1,102 +0,0 @@
+-{
+-    "deepLink": {
+-        "ios": {
+-            "AppDelegate": {
+-                "imports": [
+-                    "#import \"React/RCTLinkingManager.h\""
+-                ],
+-                "openURL": [
+-                    "[RCTLinkingManager application:application openURL:url sourceApplication:sourceApplication annotation:annotation];"
+-                ]
+-            }
+-        }
+-    },
+-    "pushNotifications": {
+-        "android": {
+-            "externalDependencies": [
+-                "com.google.firebase:firebase-messaging:20.1.2",
+-                "me.leolin:ShortcutBadger:1.1.22@aar"
+-            ],
+-            "packageListEntries": {
+-                "imports": [
+-                    "import io.invertase.firebase.messaging.RNFirebaseMessagingPackage;",
+-                    "import io.invertase.firebase.notifications.RNFirebaseNotificationsPackage;"
+-                ],
+-                "packageClassInstances": [
+-                    "new RNFirebaseMessagingPackage()",
+-                    "new RNFirebaseNotificationsPackage()"
+-                ]
+-            },
+-            "gradle": {
+-                "classpaths": [
+-                    "com.google.gms:google-services:4.2.0"
+-                ],
+-                "plugins": [
+-                    "com.google.gms.google-services"
+-                ]
+-            }
+-        },
+-        "ios": {
+-            "AppDelegate": {
+-                "imports": [
+-                    "#import <Firebase.h>",
+-                    "#import \"RNFirebase/RNFirebaseNotifications.h\"",
+-                    "#import \"RNFirebase/RNFirebaseMessaging.h\""
+-                ],
+-                "didFinishLaunchingWithOptions": [
+-                    "[FIRApp configure];",
+-                    "[RNFirebaseNotifications configure];"
+-                ],
+-                "didReceiveLocalNotification": [
+-                    "[[RNFirebaseNotifications instance] didReceiveLocalNotification:notification];"
+-                ],
+-                "didReceiveRemoteNotification": [
+-                    "[[RNFirebaseNotifications instance] didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];"
+-                ],
+-                "didRegisterUserNotificationSettings": [
+-                    "[[RNFirebaseMessaging instance] didRegisterUserNotificationSettings:notificationSettings];"
+-                ]
+-            },
+-            "pods": {
+-                "Firebase/Core": {
+-                    "version": "~> 6.19.0"
+-                },
+-                "Firebase/Messaging": {
+-                    "version": "~> 6.19.0"
+-                },
+-                "GoogleUtilities": {
+-                    "version": "~> 6.5.1"
+-                }
+-            }
+-        }
+-    },
+-    "bluetooth": {
+-        "ios": {
+-            "pods": {
+-                "react-native-ble-plx-swift": {
+-                    "path": "react-native-ble-plx"
+-                }
+-            }
+-        }
+-    },
+-    "maps": {},
+-    "mapsIos": {
+-        "ios": {
+-            "AppDelegate": {
+-                "imports": [
+-                    "#import <GoogleMaps/GoogleMaps.h>"
+-                ],
+-                "didFinishLaunchingWithOptions": [
+-                    "[GMSServices provideAPIKey:[[NSBundle mainBundle] objectForInfoDictionaryKey:@\"GoogleMapsApiKey\"] ?: @\"\"];"
+-                ]
+-            },
+-            "pods": {
+-                "react-native-google-maps": {
+-                    "path": "react-native-maps"
+-                },
+-                "GoogleMaps": {},
+-                "Google-Maps-iOS-Utils": {}
+-            }
+-        }
+-    }
+-}
+diff --git a/capabilities.android.json b/capabilities.android.json
+deleted file mode 100644
+index 0919a26..0000000
+--- a/capabilities.android.json
++++ /dev/null
+@@ -1,7 +0,0 @@
+-{
+-    "deepLink": false,
+-    "pushNotifications": false,
+-    "bluetooth": true,
+-    "maps": true,
+-    "mapsIos": true
+-}
+diff --git a/capabilities.ios.json b/capabilities.ios.json
+deleted file mode 100644
+index 0919a26..0000000
+--- a/capabilities.ios.json
++++ /dev/null
+@@ -1,7 +0,0 @@
+-{
+-    "deepLink": false,
+-    "pushNotifications": false,
+-    "bluetooth": true,
+-    "maps": true,
+-    "mapsIos": true
+-}
+diff --git a/ios/AppDelegate.m b/ios/AppDelegate.m
+index fc371df..613f280 100644
+--- a/ios/AppDelegate.m
++++ b/ios/AppDelegate.m
+@@ -1,7 +1,9 @@
++#import <Firebase.h>
+ #import "AppDelegate.h"
+-#import "MendixAppDelegate.h"
+ #import "MendixNative/MendixNative.h"
+ #import "IQKeyboardManager/IQKeyboardManager.h"
++#import "RNFirebase/RNFirebaseNotifications.h"
++#import "RNFirebase/RNFirebaseMessaging.h"
+ #import "SplashScreenPresenter.h"
+ 
+ @implementation AppDelegate
+@@ -9,9 +11,11 @@
+ @synthesize shouldOpenInLastApp;
+ 
+ - (BOOL) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+-  [MendixAppDelegate application:application didFinishLaunchingWithOptions:launchOptions];
+-  [self setupUI];
+-  
++  if (self.useFirebase) {
++    [FIRApp configure];
++    [RNFirebaseNotifications configure];
++  }
++
+   NSBundle *mainBundle = [NSBundle mainBundle];
+   NSString *targetName = [mainBundle objectForInfoDictionaryKey:@"TargetName"] ?: @"";
+ 
+@@ -49,7 +53,7 @@
+   NSURL *bundleUrl = [ReactNative.instance getJSBundleFile];
+   
+   if (bundleUrl != nil) {
+-    [ReactNative.instance setup:[[MendixApp alloc] init:nil bundleUrl:bundleUrl runtimeUrl:runtimeUrl warningsFilter:none isDeveloperApp:NO clearDataAtLaunch:NO splashScreenPresenter:[SplashScreenPresenter new]] launchOptions:launchOptions];
++    [ReactNative.instance setup:[[MendixApp alloc] init:nil bundleUrl:bundleUrl runtimeUrl:runtimeUrl warningsFilter:none isDeveloperApp:false clearDataAtLaunch:false splashScreenPresenter:[SplashScreenPresenter new]] launchOptions:launchOptions];
+     [ReactNative.instance start];
+   } else {
+     [self showUnrecoverableDialogWithTitle:@"No Mendix bundle found" message:@"Missing the Mendix app bundle. Make sure that the index.ios.bundle file is available in ios/NativeTemplate/Bundle folder. If building locally consult the documentation on how to generate a bundle from your project."];
+@@ -59,21 +63,27 @@
+ }
+ 
+ - (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
+-  [MendixAppDelegate application:application didReceiveLocalNotification:notification];
++  if (self.useFirebase) {
++    [[RNFirebaseNotifications instance] didReceiveLocalNotification:notification];
++  }
+ }
+ 
+ - (void) application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo
+ fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler{
+-  [MendixAppDelegate application:application didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
++  if (self.useFirebase) {
++    [[RNFirebaseNotifications instance] didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
++  }
+ }
+ 
+ - (void) application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings {
+-  [MendixAppDelegate application:application didRegisterUserNotificationSettings:notificationSettings];
++  if (self.useFirebase) {
++    [[RNFirebaseMessaging instance] didRegisterUserNotificationSettings:notificationSettings];
++  }
+ }
+ 
+-- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
+-  [MendixAppDelegate application:application openURL:url sourceApplication:sourceApplication annotation:annotation];
+-  return YES;
++- (BOOL) useFirebase {
++    NSString *path = [[NSBundle mainBundle] pathForResource:@"GoogleService-Info" ofType:@"plist"];
++    return [[NSFileManager defaultManager] fileExistsAtPath:path];
+ }
+ 
+ - (WarningsFilter) getWarningFilterValue {
+@@ -91,10 +101,4 @@ fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHand
+   }]];
+   [self.window.rootViewController presentViewController:alertController animated:YES completion:nil];
+ }
+-
+-- (void) setupUI {
+-  if (@available(iOS 13.4, *)) {
+-    [UIDatePicker appearance].preferredDatePickerStyle = UIDatePickerStyleWheels;
+-  }
+-}
+ @end
+diff --git a/ios/Config/config.xcconfig b/ios/Config/config.xcconfig
+index 7adddb7..d9e8867 100644
+--- a/ios/Config/config.xcconfig
++++ b/ios/Config/config.xcconfig
+@@ -4,5 +4,3 @@ BUNDLE_DISPLAY_NAME = NativeTemplate
+ BUNDLE_IDENTIFIER = com.mendix.native.template
+ 
+ RUNTIME_URL = http:\/\/localhost:8080
+-
+-PRODUCT_NAME = nativeTemplate
+diff --git a/ios/Dev/Config/config.xcconfig b/ios/Dev/Config/config.xcconfig
+index bab3094..1766679 100644
+--- a/ios/Dev/Config/config.xcconfig
++++ b/ios/Dev/Config/config.xcconfig
+@@ -3,5 +3,3 @@
+ MAIN_STORY_BOARD = LaunchApp
+ BUNDLE_DISPLAY_NAME = Dev - NativeTemplate
+ BUNDLE_IDENTIFIER_APPEND = .developerapp
+-
+-PRODUCT_NAME = NativeTemplateDev
+diff --git a/ios/MendixAppDelegate.h b/ios/MendixAppDelegate.h
+deleted file mode 100644
+index b2c51c3..0000000
+--- a/ios/MendixAppDelegate.h
++++ /dev/null
+@@ -1,16 +0,0 @@
+-#import <UIKit/UIKit.h>
+-
+-@interface MendixAppDelegate : NSObject
+-
+-+ (void) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions;
+-
+-+ (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification;
+-
+-+ (void) application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo
+-fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler;
+-
+-+ (void) application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings;
+-
+-+ (void) application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation;
+-
+-@end
+diff --git a/ios/MendixNative/libMendix.a b/ios/MendixNative/libMendix.a
+index 916ff1066b6ff94a1740524de30db2e05c6b4222..b3281bd12919b7bac51936b03c5dd055534235ac 100644
+GIT binary patch
+delta 59813
+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
+JI|3If{|mg=Ym5K@
+
+delta 62940
+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
+GDE}9kcvX)8
+
+diff --git a/ios/Podfile b/ios/Podfile
+index 4bec8af..d5f81a2 100644
+--- a/ios/Podfile
++++ b/ios/Podfile
+@@ -1,8 +1,6 @@
+ # Uncomment the next line to define a global platform for your project
+ platform :ios, '10.0'
+ require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+-require_relative './mendix_utils'
+-generate_mendix_delegate
+ 
+ def common_pods
+   # Comment the next line if you don't want to use dynamic frameworks
+@@ -43,21 +41,32 @@ def common_pods
+   # RN pods end
+ 
+   # Manually linked dependencies
++  pod 'react-native-camera', :path => '../node_modules/react-native-camera'
++  pod 'react-native-ble-plx', :path => '../node_modules/react-native-ble-plx'
++  pod 'react-native-ble-plx-swift', :path => '../node_modules/react-native-ble-plx'
++  pod 'react-native-maps', :path => '../node_modules/react-native-maps'
++  pod 'react-native-google-maps', :path => '../node_modules/react-native-maps'
++  pod 'react-native-geocoder', :path => '../node_modules/react-native-geocoder'
+   pod 'react-native-splash-screen', :path => '../node_modules/react-native-splash-screen'
+ 
+   # Third party dependencies of dependencies
++  pod 'GoogleMaps'
++  pod 'Google-Maps-iOS-Utils'
+   pod 'IQKeyboardManager'
++  pod 'Firebase/Core', '~> 6.19.0'
++  pod 'Firebase/Messaging', '~> 6.19.0'
++  pod 'GoogleUtilities', '~> 6.5.1'
++  pod 'Fabric', '~> 1.10.2'
++  pod 'Crashlytics', '~> 3.14.0'
+ end
+ 
+ target 'nativeTemplate' do
+-  generate_pod_dependencies
+   use_native_modules!
+   common_pods
+   # Intentionally left empty
+ end
+ 
+ target 'dev' do
+-  generate_pod_dependencies
+   use_native_modules!
+   common_pods
+   # Intentionally left empty
+diff --git a/ios/Podfile.lock b/ios/Podfile.lock
+index bbea556..b0a4579 100644
+--- a/ios/Podfile.lock
++++ b/ios/Podfile.lock
+@@ -98,7 +98,7 @@ PODS:
+     - GoogleUtilities/Network (~> 6.0)
+     - "GoogleUtilities/NSData+zlib (~> 6.0)"
+     - nanopb (= 0.3.9011)
+-  - GoogleDataTransport (6.2.1)
++  - GoogleDataTransport (6.0.0)
+   - GoogleDataTransportCCTSupport (3.0.0):
+     - GoogleDataTransport (~> 6.0)
+     - nanopb (~> 0.3.901)
+@@ -139,7 +139,7 @@ PODS:
+     - GoogleUtilities/MethodSwizzler
+   - GoogleUtilities/UserDefaults (6.5.2):
+     - GoogleUtilities/Logger
+-  - IQKeyboardManager (6.5.6)
++  - IQKeyboardManager (6.5.5)
+   - JWT (3.0.0-beta.12):
+     - Base64 (~> 1.1.2)
+   - libwebp (1.1.0):
+@@ -156,8 +156,8 @@ PODS:
+     - nanopb/encode (= 0.3.9011)
+   - nanopb/decode (0.3.9011)
+   - nanopb/encode (0.3.9011)
+-  - PromisesObjC (1.2.11)
+-  - Protobuf (3.13.0)
++  - PromisesObjC (1.2.8)
++  - Protobuf (3.11.4)
+   - RCTRequired (0.61.5)
+   - RCTTypeSafety (0.61.5):
+     - FBLazyVector (= 0.61.5)
+@@ -409,8 +409,8 @@ PODS:
+     - React
+   - RNCMaskedView (0.1.7):
+     - React
+-  - RNDateTimePicker (3.0.4):
+-    - React-Core
++  - RNDateTimePicker (2.3.0):
++    - React
+   - RNDeviceInfo (5.5.3):
+     - React
+   - RNFastImage (8.1.5):
+@@ -443,20 +443,22 @@ PODS:
+     - React
+   - RNVectorIcons (6.6.0):
+     - React
+-  - SDWebImage (5.10.0):
+-    - SDWebImage/Core (= 5.10.0)
+-  - SDWebImage/Core (5.10.0)
++  - SDWebImage (5.7.3):
++    - SDWebImage/Core (= 5.7.3)
++  - SDWebImage/Core (5.7.3)
+   - SDWebImageWebPCoder (0.4.1):
+     - libwebp (~> 1.0)
+     - SDWebImage/Core (~> 5.5)
+-  - SSZipArchive (2.2.3)
++  - SSZipArchive (2.2.2)
+   - TouchID (4.4.1):
+     - React
+   - Yoga (1.14.0)
+ 
+ DEPENDENCIES:
+   - CodePush (from `../node_modules/react-native-code-push`)
++  - Crashlytics (~> 3.14.0)
+   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
++  - Fabric (~> 1.10.2)
+   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
+   - FBReactNativeSpec (from `../node_modules/react-native/Libraries/FBReactNativeSpec`)
+   - Firebase/Core (~> 6.19.0)
+@@ -678,10 +680,10 @@ EXTERNAL SOURCES:
+ SPEC CHECKSUMS:
+   Base64: cecfb41a004124895a7bcee567a89bae5a89d49b
+   boost-for-react-native: 39c7adb57c4e60d6c5479dd8623128eb5b3f0f2c
+-  CodePush: 46ca36050986e6afb911fc4eeb0fe80515ac1c19
+-  Crashlytics: 9220f5bc89e7a618df411b4f639389dbfb0e03d2
++  CodePush: bb7e03266a59b81c45d67f518dd5eb30aeb09b1e
++  Crashlytics: 540b7e5f5da5a042647227a5e3ac51d85eed06df
+   DoubleConversion: 5805e889d232975c086db112ece9ed034df7a0b2
+-  Fabric: ea977e3cd9c20425516d3dafd3bf8c941c51223f
++  Fabric: 706c8b8098fff96c33c0db69cbf81f9c551d0d74
+   FBLazyVector: aaeaf388755e4f29cd74acbc9e3b8da6d807c37f
+   FBReactNativeSpec: 118d0d177724c2d67f08a59136eb29ef5943ec75
+   Firebase: d55ddb0e0bb3207166cddc028647833d8a1b5b6f
+@@ -697,16 +699,16 @@ SPEC CHECKSUMS:
+   glog: 1f3da668190260b06b429bb211bfbee5cd790c28
+   Google-Maps-iOS-Utils: c32891ff472eaaa1fca032beedafa1a013af7875
+   GoogleAppMeasurement: c29d405ff76e18551b5d158eaba6753fda8c7542
+-  GoogleDataTransport: 9a8a16f79feffc7f42096743de2a7c4815e84020
++  GoogleDataTransport: 061fe7d9b476710e3cd8ea51e8e07d8b67c2b420
+   GoogleDataTransportCCTSupport: 0f39025e8cf51f168711bd3fb773938d7e62ddb5
+   GoogleMaps: 32ca02de09de357a10ac773f2c70f1986751392d
+   GoogleUtilities: ad0f3b691c67909d03a3327cc205222ab8f42e0e
+-  IQKeyboardManager: 2a6e97afdafc7becf0cb17a9a8d795e3a980717f
++  IQKeyboardManager: 3a8b9e603f8b0eeaf5f096a1f2b2cfcf121992ef
+   JWT: 9b5c05abbcc1a0e69c3c91e1655b3387fc7e581d
+   libwebp: 946cb3063cea9236285f7e9a8505d806d30e07f3
+   nanopb: 18003b5e52dab79db540fe93fe9579f399bd1ccd
+-  PromisesObjC: 8c196f5a328c2cba3e74624585467a557dcb482f
+-  Protobuf: 3dac39b34a08151c6d949560efe3f86134a3f748
++  PromisesObjC: c119f3cd559f50b7ae681fa59dc1acd19173b7e6
++  Protobuf: 176220c526ad8bd09ab1fb40a978eac3fef665f7
+   RCTRequired: b153add4da6e7dbc44aebf93f3cf4fcae392ddf1
+   RCTTypeSafety: 9aa1b91d7f9310fc6eadc3cf95126ffe818af320
+   React: b6a59ef847b2b40bb6e0180a97d0ca716969ac78
+@@ -718,21 +720,21 @@ SPEC CHECKSUMS:
+   React-jsinspector: fa0ecc501688c3c4c34f28834a76302233e29dc0
+   react-native-ble-plx: 304c7bee074a05581672c9990f375b3906808718
+   react-native-ble-plx-swift: eb64f02b988becb84a60164aba9fab5d6ddb6dc8
+-  react-native-calendar-events: 2fe35a9294af05de0ed819d3a1b5dac048d2c010
+-  react-native-camera: 2b575b086c06caf89fd3d119d06bd977a9942103
+-  react-native-cameraroll: 1edb879e985fe97d1d44f42372cb4a948e0384cd
++  react-native-calendar-events: eaa63134881d97488feb21ea114158f712894018
++  react-native-camera: 7c6cf8ddc64405e1aff0a26d1b487378597f9fed
++  react-native-cameraroll: dbda741db5dadcdcf738e55a1fd565c307943bca
+   react-native-geocoder: 757427682892bb256f3b3745858cc90eba148a8e
+-  react-native-geolocation: cbd9d6bd06bac411eed2671810f454d4908484a8
++  react-native-geolocation: c956aeb136625c23e0dce0467664af2c437888c9
+   react-native-google-maps: 773b7bcef4f92005847cbf455ca1fa76a21e74c7
+-  react-native-image-picker: 668e72d0277dc8c12ae90e835507c1eddd2e4f85
++  react-native-image-picker: 6a850c41f57f0848d918c2a77aedd7aa272ffa30
+   react-native-maps: 6e1cf14d0aabefe59966da6dad7cb662251d3d83
+-  react-native-netinfo: c67896313964727ddae153d6e119f65dae840d51
+-  react-native-safe-area-context: 8260e5157617df4b72865f44006797f895b2ada7
++  react-native-netinfo: 73303369946c2487c600418961bfdc87748b832f
++  react-native-safe-area-context: e200d4433aba6b7e60b52da5f37af11f7a0b0392
+   react-native-splash-screen: 200d11d188e2e78cea3ad319964f6142b6384865
+-  react-native-sqlite-storage: bb10beb2407e5fc21f3f1bcd86bacbfd6edcc818
+-  react-native-video: 961749da457e73bf0b5565edfbaffc25abfb8974
+-  react-native-view-shot: 08c46c9e8e92f6681e8f2ffa55ac3d06e7e99070
+-  react-native-webview: 055c7110f17c2f19c971f655064ee480638db668
++  react-native-sqlite-storage: f06bfba10f67f989c00b6a699b9c2b80a816edbe
++  react-native-video: d01ed7ff1e38fa7dcc6c15c94cf505e661b7bfd0
++  react-native-view-shot: 4475fde003fe8a210053d1f98fb9e06c1d834e1c
++  react-native-webview: fcb5f377aadc216273300f452ee0d321fb85809b
+   React-RCTActionSheet: 600b4d10e3aea0913b5a92256d2719c0cdd26d76
+   React-RCTAnimation: 791a87558389c80908ed06cc5dfc5e7920dfa360
+   React-RCTBlob: d89293cc0236d9cb0933d85e430b0bbe81ad1d72
+@@ -743,27 +745,27 @@ SPEC CHECKSUMS:
+   React-RCTText: 9ccc88273e9a3aacff5094d2175a605efa854dbe
+   React-RCTVibration: a49a1f42bf8f5acf1c3e297097517c6b3af377ad
+   ReactCommon: 198c7c8d3591f975e5431bec1b0b3b581aa1c5dd
+-  ReactNativeART: f003b07dfa7098aa419ed95b69560923440b1eee
++  ReactNativeART: 78edc68dd4a1e675338cd0cd113319cf3a65f2ab
+   ReactNativeDarkMode: 0178ffca3b10f6a7c9f49d6f9810232b328fa949
+-  RNCAsyncStorage: 00bdf63f7f1e0f11d3323533dba4f222e58bf092
+-  RNCMaskedView: 90dd32f5b786bd562e876e1421ea77c700cbf71e
+-  RNDateTimePicker: 88dc10d685ce961339bad3353c64db96c5abd19b
+-  RNDeviceInfo: 67607dfe9cfbed105838144c40187a8392aa404d
++  RNCAsyncStorage: e0dd7c8a36543b4ef84969acd9f8aceba3a92dc2
++  RNCMaskedView: 76c40a1d41c3e2535df09246a2b5487f04de0814
++  RNDateTimePicker: 63e79b1e0dc6da8806ed8cf76e8528f7f88bcbc3
++  RNDeviceInfo: 310c1f43d418d950a193c7650de2f9559c906048
+   RNFastImage: 35ae972d6727c84ee3f5c6897e07f84d0a3445e9
+   RNFirebase: 37daa9a346d070f9f6ee1f3b4aaf4c8e3b1d5d1c
+   RNGestureHandler: dde546180bf24af0b5f737c8ad04b6f3fa51609a
+-  RNInAppBrowser: b51ad29a3cfe36a9a55866d42fc169aa7db8522e
+-  RNLocalize: d8025bb1ac74c0ad54155ea9862538624ebf74d8
++  RNInAppBrowser: 9936b2e23ab7ed9b6ac938eb1c4a656b95292e11
++  RNLocalize: 215c419a17d7585eb7a63c748ebfd042e0cb2c3d
+   RNReanimated: 031fe8d9ea93c2bd689a40f05320ef9d96f74d7f
+-  RNSound: c980916b596cc15c8dcd2f6ecd3b13c4881dbe20
++  RNSound: da030221e6ac7e8290c6b43f2b5f2133a8e225b0
+   RNSVG: 7e16ddfc6e00d5aa69c9eb83e699bcce5dcb85d4
+   RNVectorIcons: 0bb4def82230be1333ddaeee9fcba45f0b288ed4
+-  SDWebImage: 9169792e9eec3e45bba2a0c02f74bf8bd922d1ee
++  SDWebImage: 97351f6582ceca541ea294ba66a1fcb342a331c2
+   SDWebImageWebPCoder: 36f8f47bd9879a8aea6044765c1351120fd8e3a8
+-  SSZipArchive: 62d4947b08730e4cda640473b0066d209ff033c9
++  SSZipArchive: fa16b8cc4cdeceb698e5e5d9f67e9558532fbf23
+   TouchID: ba4c656d849cceabc2e4eef722dea5e55959ecf4
+   Yoga: f2a7cd4280bfe2cca5a7aed98ba0eb3d1310f18b
+ 
+-PODFILE CHECKSUM: 907c29c4504ccf424d696b27015e7d1f356cb212
++PODFILE CHECKSUM: 0cebfb2ab0abcf7ed7edc73265786a8151a4458d
+ 
+-COCOAPODS: 1.10.0
++COCOAPODS: 1.9.1
+diff --git a/ios/mendix_utils.rb b/ios/mendix_utils.rb
+deleted file mode 100644
+index 5f4379c..0000000
+--- a/ios/mendix_utils.rb
++++ /dev/null
+@@ -1,143 +0,0 @@
+-require "json"
+-
+-def generate_pod_dependencies
+-  resolved_pods = {}
+-
+-  capabilities_setup_config = get_capabilities_setup_config
+-  get_project_capabilities.select { |_, value| value == true }.each do |name, _|
+-    capability = capabilities_setup_config[name.to_s]
+-    if capability.nil?
+-      Pod::UI.warn "Capability for '#{name.to_s}' is not valid. This file should not be manipulated without guidance."
+-      next
+-    end
+-
+-    next unless capability["ios"] && pods = capability["ios"]["pods"]
+-    resolved_pods.merge! pods
+-  end
+-
+-  modules = get_react_native_config["dependencies"]
+-  get_unlinked_dependency_config.each do |name, options|
+-    next unless options["ios"] && modules.include?(name) && pods = options["ios"]["pods"]
+-    resolved_pods.merge! pods
+-  end
+-
+-  include_pods(resolved_pods.compact)
+-end
+-
+-def generate_mendix_delegate
+-  imports = []
+-  hooks = {
+-    didFinishLaunchingWithOptions: [],
+-    didReceiveLocalNotification: [],
+-    didReceiveRemoteNotification: [],
+-    didRegisterUserNotificationSettings: [],
+-    openURL: [],
+-  }
+-
+-  capabilities_setup_config = get_capabilities_setup_config
+-  get_project_capabilities.select { |_, value| value == true }.each do |name, _|
+-    capability = capabilities_setup_config[name.to_s]
+-    if capability.nil?
+-      Pod::UI.warn "Capability for '#{name.to_s}' is not valid. This file should not be manipulated without guidance."
+-      next
+-    end
+-
+-    next if capability["ios"].nil?
+-
+-    Pod::UI.notice "Capability for '#{name.to_s}' was enabled for this project."
+-
+-    next unless capability = capability["ios"]["AppDelegate"]
+-
+-    imports << capability["imports"] if !capability["imports"].nil?
+-
+-    hooks.each do |name, hook|
+-      hook << capability[name.to_s].map { |line| "  #{line}" } if !capability[name.to_s].nil?
+-    end
+-  end
+-
+-  File.open("MendixAppDelegate.m", "w") do |file|
+-    mendix_app_delegate = mendix_app_delegate_template.sub("{{ imports }}", stringify(imports))
+-    hooks.each { |name, hook| mendix_app_delegate.sub!("{{ #{name.to_s} }}", stringify(hook)) }
+-    file << mendix_app_delegate
+-  end
+-end
+-
+-def mendix_app_delegate_template
+-  %(// DO NOT EDIT BY HAND. THIS FILE IS AUTO-GENERATED
+-#import <Foundation/Foundation.h>
+-#import "MendixAppDelegate.h"
+-{{ imports }}
+-
+-@implementation MendixAppDelegate
+-
+-+ (void) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+-{{ didFinishLaunchingWithOptions }}
+-}
+-
+-+ (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
+-{{ didReceiveLocalNotification }}
+-}
+-
+-+ (void) application:(UIApplication *)application didReceiveRemoteNotification:(nonnull NSDictionary *)userInfo
+-fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHandler{
+-{{ didReceiveRemoteNotification }}
+-}
+-
+-+ (void) application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings {
+-{{ didRegisterUserNotificationSettings }}
+-}
+-
+-+ (void) application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
+-{{ openURL }}
+-}
+-
+-@end\n)
+-end
+-
+-def stringify(array)
+-  array.flatten.uniq.join("\n")
+-end
+-
+-def read_json_file_gracefully(path)
+-  file_path = File.join(__dir__, "..", path)
+-  JSON.parse(File.read(file_path)) if File.exists?(file_path)
+-end
+-
+-def get_unlinked_dependency_config
+-  read_json_file_gracefully("unlinked-dependency-config.json") || {}
+-end
+-
+-def get_capabilities_setup_config
+-  read_json_file_gracefully("capabilities-setup-config.json") || {}
+-end
+-
+-def get_project_capabilities
+-  read_json_file_gracefully("capabilities.ios.json") || {}
+-end
+-
+-# Source @react-native-community/cli-platform-ios/native_modules
+-def get_react_native_config
+-  cli_command = "try {console.log(require('@react-native-community/cli').bin);} catch (e) {console.log(require('react-native/cli').bin);}"
+-  cli_result = Pod::Executable.execute_command("node", ["-e", cli_command], true).strip
+-
+-  json = []
+-  IO.popen(["node", cli_result, "config"]) do |data|
+-    while line = data.gets
+-      json << line
+-    end
+-  end
+-
+-  JSON.parse(json.join("\n"))
+-end
+-
+-def include_pods(pods = {})
+-  pods.each do |name, pod|
+-    if pod["path"] != nil && !pod["path"].empty?
+-      pod name, :path => "../node_modules/#{pod["path"]}"
+-    elsif pod["version"] != nil && !pod["version"].empty?
+-      pod name, pod["version"]
+-    else
+-      pod name
+-    end
+-  end
+-end
+diff --git a/ios/nativeTemplate.xcodeproj/project.pbxproj b/ios/nativeTemplate.xcodeproj/project.pbxproj
+index b789257..f62bfe0 100644
+--- a/ios/nativeTemplate.xcodeproj/project.pbxproj
++++ b/ios/nativeTemplate.xcodeproj/project.pbxproj
+@@ -34,8 +34,6 @@
+ 		2C887FE324B8948F0003DC53 /* StoryBoardSplash.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C887FE124B8948F0003DC53 /* StoryBoardSplash.m */; };
+ 		2CD8398224D14DF900A83374 /* libMendix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2CD8397224D14DF700A83374 /* libMendix.a */; };
+ 		2CD8398324D14DF900A83374 /* libMendix.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2CD8397224D14DF700A83374 /* libMendix.a */; };
+-		2C4991D124C593C3008403BB /* MendixAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C4991D024C593C3008403BB /* MendixAppDelegate.m */; };
+-		2C4991D224C593C3008403BB /* MendixAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C4991D024C593C3008403BB /* MendixAppDelegate.m */; };
+ 		9DF4091425A46A56E2A9A405 /* libPods-nativeTemplate.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 73F36AC2CCD37CCD4E7B1BB8 /* libPods-nativeTemplate.a */; };
+ 		B28D6DAD97033B55832E5853 /* libPods-dev.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 11502903429AC2E6E69E6482 /* libPods-dev.a */; };
+ 		EB55620C22E0755000E19C26 /* glyphicons-halflings-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EB55620B22E0755000E19C26 /* glyphicons-halflings-regular.ttf */; };
+@@ -91,8 +89,6 @@
+ 		2CD8397F24D14DF800A83374 /* UnsupportedFeatures.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnsupportedFeatures.h; sourceTree = "<group>"; };
+ 		2CD8398024D14DF800A83374 /* MendixBackwardsCompatUtility.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MendixBackwardsCompatUtility.h; sourceTree = "<group>"; };
+ 		2CD8398124D14DF900A83374 /* RuntimeInfoProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RuntimeInfoProvider.h; sourceTree = "<group>"; };
+-		2C4991D024C593C3008403BB /* MendixAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MendixAppDelegate.m; sourceTree = "<group>"; };
+-		2C4991D324C595F0008403BB /* MendixAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MendixAppDelegate.h; sourceTree = "<group>"; };
+ 		2E683DD88AD2190EB6610BB7 /* Pods-nativeTemplate.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nativeTemplate.debug.xcconfig"; path = "Target Support Files/Pods-nativeTemplate/Pods-nativeTemplate.debug.xcconfig"; sourceTree = "<group>"; };
+ 		3A1AE629EDD2EFAEE88E17A6 /* Pods-dev.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-dev.release.xcconfig"; path = "Target Support Files/Pods-dev/Pods-dev.release.xcconfig"; sourceTree = "<group>"; };
+ 		3A50E1C430A9EB98E247701D /* Pods-nativeTemplate.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nativeTemplate.debug.xcconfig"; path = "Target Support Files/Pods-nativeTemplate/Pods-nativeTemplate.debug.xcconfig"; sourceTree = "<group>"; };
+@@ -152,8 +148,6 @@
+ 				2C887F7124B7BFFE0003DC53 /* SplashScreenPresenter.m */,
+ 				2C887FE024B893FC0003DC53 /* RNSplashScreen+StoryBoardSplash.h */,
+ 				2C887FE124B8948F0003DC53 /* StoryBoardSplash.m */,
+-				2C4991D024C593C3008403BB /* MendixAppDelegate.m */,
+-				2C4991D324C595F0008403BB /* MendixAppDelegate.h */,
+ 				13B07FB61A68108700A75B9A /* Info.plist */,
+ 				1AAE158823C5FEFC00F855F4 /* SwiftInterop.swift */,
+ 				2C887FD924B88A0E0003DC53 /* LaunchScreen.storyboard */,
+@@ -577,7 +571,6 @@
+ 				2C887FE224B8948F0003DC53 /* StoryBoardSplash.m in Sources */,
+ 				EB59215B23BFA1F5001D6155 /* main.m in Sources */,
+ 				2C887F7224B7BFFE0003DC53 /* SplashScreenPresenter.m in Sources */,
+-				2C4991D124C593C3008403BB /* MendixAppDelegate.m in Sources */,
+ 				1AAE158923C5FEFC00F855F4 /* SwiftInterop.swift in Sources */,
+ 				EB55E08A23BF7FF700E3FB34 /* AppDelegate.m in Sources */,
+ 			);
+@@ -596,7 +589,6 @@
+ 				EB55E08823BF7FF500E3FB34 /* AppDelegate.m in Sources */,
+ 				1A0B3A992397DA2300388BF7 /* LaunchAppViewController.swift in Sources */,
+ 				1A0B3ADC2397F1FF00388BF7 /* URLValidator.swift in Sources */,
+-				2C4991D224C593C3008403BB /* MendixAppDelegate.m in Sources */,
+ 				EB59215C23BFA1F5001D6155 /* main.m in Sources */,
+ 				1A0B3AD82397EB4000388BF7 /* RoundedButton.swift in Sources */,
+ 			);
+@@ -682,7 +674,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+@@ -756,7 +748,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -803,7 +795,7 @@
+ 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -851,7 +843,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+@@ -971,7 +963,7 @@
+ 					"-lc++",
+ 				);
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = nativeTemplate;
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${PROJECT_DIR} ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+@@ -1018,7 +1010,7 @@
+ 				MARKETING_VERSION = 1.0.0;
+ 				MTL_FAST_MATH = YES;
+ 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+-				PRODUCT_NAME = "$(PRODUCT_NAME)";
++				PRODUCT_NAME = NativeTemplateDev;
+ 				SWIFT_INCLUDE_PATHS = "$(inherited) ${SRCROOT}/MendixNative";
+ 				SWIFT_OBJC_BRIDGING_HEADER = "nativeTemplate-Bridging-Header.h";
+ 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+diff --git a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+index cee16f9..9f926e3 100644
+--- a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
++++ b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+@@ -48,60 +48,6 @@
+       "filename" : "app@3x.png",
+       "scale" : "3x"
+     },
+-    {
+-      "filename" : "notification@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "20x20"
+-    },
+-    {
+-      "filename" : "notification@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "20x20"
+-    },
+-    {
+-      "filename" : "settings@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "29x29"
+-    },
+-    {
+-      "filename" : "settings@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "29x29"
+-    },
+-    {
+-      "filename" : "spotlight@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "40x40"
+-    },
+-    {
+-      "filename" : "spotlight@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "40x40"
+-    },
+-    {
+-      "filename" : "ipadapp@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "76x76"
+-    },
+-    {
+-      "filename" : "ipadapp@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "76x76"
+-    },
+-    {
+-      "filename" : "ipadproapp@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "83.5x83.5"
+-    },
+     {
+       "size" : "1024x1024",
+       "idiom" : "ios-marketing",
+diff --git a/ios/nativeTemplate/Info.plist b/ios/nativeTemplate/Info.plist
+index 32f0ee6..d12e1a7 100644
+--- a/ios/nativeTemplate/Info.plist
++++ b/ios/nativeTemplate/Info.plist
+@@ -29,8 +29,6 @@
+ 	<string>1</string>
+ 	<key>CodePushKey</key>
+ 	<string></string>
+-	<key>GoogleMapsApiKey</key>
+-	<string></string>
+ 	<key>LSRequiresIPhoneOS</key>
+ 	<true/>
+ 	<key>NSAppTransportSecurity</key>
+diff --git a/mendix_version.json b/mendix_version.json
+index 5ec1971..4f9b643 100644
+--- a/mendix_version.json
++++ b/mendix_version.json
+@@ -11,11 +11,7 @@
+     "max": "3.2.*",
+     "min": "3.2.0"
+   },
+-  ">=8.7.0": {
+-    "max": "3.1.*",
+-    "min": "2.1.0"
+-  },
+-  ">=8.6.3": {
++  "8.6.3": {
+     "max": "3.2.*",
+     "min": "3.2.0"
+   },
+diff --git a/package-lock.json b/package-lock.json
+index 6952d6b..e6962ad 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.9",
++  "version": "3.1.0",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+@@ -3750,9 +3750,9 @@
+       "integrity": "sha512-ng6Tm537E/M42GjE4TRUxQyL8sRfClcL7bQWblOCoxPZzJ2J3bdALsjeG3vDnVCIfI/R0AeFalN9KjMt0+Z/Zg=="
+     },
+     "@react-native-community/datetimepicker": {
+-      "version": "3.0.4",
+-      "resolved": "https://registry.npmjs.org/@react-native-community/datetimepicker/-/datetimepicker-3.0.4.tgz",
+-      "integrity": "sha512-IsBkemz1XYubH5twfQPC/xleZdILA5SEUaLJ2C86IbnIOctb6suk8tB6uT9VxQkCsw4zjkrlqt9p9LGx9DJ97w==",
++      "version": "2.3.0",
++      "resolved": "https://registry.npmjs.org/@react-native-community/datetimepicker/-/datetimepicker-2.3.0.tgz",
++      "integrity": "sha512-kEmhnvkVm0/WJxle2Oze1Wu5pSO65jeP6vdVJzglgQDI3X9bHUlId0JTKZPpDAB9nFUM8cp5X5RSR0KW0SbFsA==",
+       "requires": {
+         "invariant": "^2.2.4"
+       }
+@@ -3902,12 +3902,6 @@
+       "resolved": "https://registry.npmjs.org/@types/yargs-parser/-/yargs-parser-15.0.0.tgz",
+       "integrity": "sha512-FA/BWv8t8ZWJ+gEOnLLd8ygxH/2UFbAvgEonyfN6yWGLKc7zVjbpl2Y4CTjid9h2RfgPP6SEt6uHwEOply00yw=="
+     },
+-    "@yarnpkg/lockfile": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/@yarnpkg/lockfile/-/lockfile-1.1.0.tgz",
+-      "integrity": "sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ==",
+-      "dev": true
+-    },
+     "abab": {
+       "version": "2.0.3",
+       "resolved": "https://registry.npmjs.org/abab/-/abab-2.0.3.tgz",
+@@ -4825,13 +4819,13 @@
+       "integrity": "sha512-MQcXEUbCKtEo7bhqEs6560Hyd4XaovZlO/k9V3hjVUF/zwW7KBVdSK4gIt/bzwS9MbR5qob+F5jusZsb0YQK2A=="
+     },
+     "bunyan": {
+-      "version": "1.8.14",
+-      "resolved": "https://registry.npmjs.org/bunyan/-/bunyan-1.8.14.tgz",
+-      "integrity": "sha512-LlahJUxXzZLuw/hetUQJmRgZ1LF6+cr5TPpRj6jf327AsiIq2jhYEH4oqUUkVKTor+9w2BT3oxVwhzE5lw9tcg==",
++      "version": "1.8.13",
++      "resolved": "https://registry.npmjs.org/bunyan/-/bunyan-1.8.13.tgz",
++      "integrity": "sha512-4zO4iMxZeCpf+95ERsr83nwQr11o1KY2FLhX4wZ6kPXieIVYL3k9eX+N6vbHhFEK5h5O/qCQpfXt7N9VBAIvCA==",
+       "dev": true,
+       "requires": {
+         "dtrace-provider": "~0.8",
+-        "moment": "^2.19.3",
++        "moment": "^2.10.6",
+         "mv": "~2",
+         "safe-json-stringify": "~1"
+       }
+@@ -5519,9 +5513,9 @@
+       "dev": true
+     },
+     "detox": {
+-      "version": "17.6.1",
+-      "resolved": "https://registry.npmjs.org/detox/-/detox-17.6.1.tgz",
+-      "integrity": "sha512-NPZabH3ixOdXCbDDQeRToUxXTN1kHiK7WhCCjH4YHtKNaprcYiYqPgIloEykauHvpgynebmyTBxOY6hDtsiO4Q==",
++      "version": "16.9.2",
++      "resolved": "https://registry.npmjs.org/detox/-/detox-16.9.2.tgz",
++      "integrity": "sha512-yi74zL3hHFRU131B5tgZiYh0hPWvpryntllAKEpxRGRRuz+11s2+TjpuS0M02jGOdDMFBk5BzcXFGM57FWbWNA==",
+       "dev": true,
+       "requires": {
+         "bunyan": "^1.8.12",
+@@ -5536,7 +5530,6 @@
+         "lodash": "^4.17.5",
+         "minimist": "^1.2.0",
+         "proper-lockfile": "^3.0.2",
+-        "resolve-from": "^5.0.0",
+         "sanitize-filename": "^1.6.1",
+         "shell-utils": "^1.0.9",
+         "signal-exit": "^3.0.3",
+@@ -5546,8 +5539,7 @@
+         "which": "^1.3.1",
+         "ws": "^3.3.1",
+         "yargs": "^13.0.0",
+-        "yargs-parser": "^13.0.0",
+-        "yargs-unparser": "^1.6.3"
++        "yargs-parser": "^13.0.0"
+       },
+       "dependencies": {
+         "ansi-regex": {
+@@ -5615,12 +5607,6 @@
+           "integrity": "sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==",
+           "dev": true
+         },
+-        "resolve-from": {
+-          "version": "5.0.0",
+-          "resolved": "https://registry.npmjs.org/resolve-from/-/resolve-from-5.0.0.tgz",
+-          "integrity": "sha512-qYg9KP24dD5qka9J47d0aVky0N+b4fTU89LN9iDnjB5waksiC49rvMB0PrUJQGoTmH50XPiqOvAjDfaijGxYZw==",
+-          "dev": true
+-        },
+         "signal-exit": {
+           "version": "3.0.3",
+           "resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-3.0.3.tgz",
+@@ -6365,46 +6351,6 @@
+         }
+       }
+     },
+-    "find-yarn-workspace-root": {
+-      "version": "1.2.1",
+-      "resolved": "https://registry.npmjs.org/find-yarn-workspace-root/-/find-yarn-workspace-root-1.2.1.tgz",
+-      "integrity": "sha512-dVtfb0WuQG+8Ag2uWkbG79hOUzEsRrhBzgfn86g2sJPkzmcpGdghbNTfUKGTxymFrY/tLIodDzLoW9nOJ4FY8Q==",
+-      "dev": true,
+-      "requires": {
+-        "fs-extra": "^4.0.3",
+-        "micromatch": "^3.1.4"
+-      },
+-      "dependencies": {
+-        "fs-extra": {
+-          "version": "4.0.3",
+-          "resolved": "https://registry.npmjs.org/fs-extra/-/fs-extra-4.0.3.tgz",
+-          "integrity": "sha512-q6rbdDd1o2mAnQreO7YADIxf/Whx4AHBiRf6d+/cVT8h44ss+lHgxf1FemcqDnQt9X3ct4McHr+JMGlYSsK7Cg==",
+-          "dev": true,
+-          "requires": {
+-            "graceful-fs": "^4.1.2",
+-            "jsonfile": "^4.0.0",
+-            "universalify": "^0.1.0"
+-          }
+-        }
+-      }
+-    },
+-    "flat": {
+-      "version": "4.1.0",
+-      "resolved": "https://registry.npmjs.org/flat/-/flat-4.1.0.tgz",
+-      "integrity": "sha512-Px/TiLIznH7gEDlPXcUD4KnBusa6kR6ayRUVcnEAbreRIuhkqow/mun59BuRXwoYk7ZQOLW1ZM05ilIvK38hFw==",
+-      "dev": true,
+-      "requires": {
+-        "is-buffer": "~2.0.3"
+-      },
+-      "dependencies": {
+-        "is-buffer": {
+-          "version": "2.0.4",
+-          "resolved": "https://registry.npmjs.org/is-buffer/-/is-buffer-2.0.4.tgz",
+-          "integrity": "sha512-Kq1rokWXOPXWuaMAqZiJW4XxsmD9zGx9q4aePabbn3qCRGedtH7Cm+zV8WETitMfu1wdh+Rvd6w5egwSngUX2A==",
+-          "dev": true
+-        }
+-      }
+-    },
+     "for-in": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/for-in/-/for-in-1.0.2.tgz",
+@@ -7457,12 +7403,6 @@
+         "kind-of": "^3.0.2"
+       }
+     },
+-    "is-plain-obj": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/is-plain-obj/-/is-plain-obj-1.1.0.tgz",
+-      "integrity": "sha1-caUMhCnfync8kqOQpKA7OfzVHT4=",
+-      "dev": true
+-    },
+     "is-plain-object": {
+       "version": "2.0.4",
+       "resolved": "https://registry.npmjs.org/is-plain-object/-/is-plain-object-2.0.4.tgz",
+@@ -11054,15 +10994,6 @@
+         "graceful-fs": "^4.1.9"
+       }
+     },
+-    "klaw-sync": {
+-      "version": "6.0.0",
+-      "resolved": "https://registry.npmjs.org/klaw-sync/-/klaw-sync-6.0.0.tgz",
+-      "integrity": "sha512-nIeuVSzdCCs6TDPTqI8w1Yre34sSq7AkZ4B3sfOBbI2CgVSB4Du4aLQijFU2+lhAFCwt9+42Hel6lQNIv6AntQ==",
+-      "dev": true,
+-      "requires": {
+-        "graceful-fs": "^4.1.11"
+-      }
+-    },
+     "kleur": {
+       "version": "3.0.3",
+       "resolved": "https://registry.npmjs.org/kleur/-/kleur-3.0.3.tgz",
+@@ -11831,9 +11762,9 @@
+       }
+     },
+     "moment": {
+-      "version": "2.29.0",
+-      "resolved": "https://registry.npmjs.org/moment/-/moment-2.29.0.tgz",
+-      "integrity": "sha512-z6IJ5HXYiuxvFTI6eiQ9dm77uE0gyy1yXNApVHqTcnIKfY9tIwEjlzsZ6u1LQXvVgKeTnv9Xm7NDvJ7lso3MtA==",
++      "version": "2.27.0",
++      "resolved": "https://registry.npmjs.org/moment/-/moment-2.27.0.tgz",
++      "integrity": "sha512-al0MUK7cpIcglMv3YF13qSgdAIqxHTO7brRtaz3DlSULbqfazqkc5kEjNrLDOM7fsjshoFIihnU8snrP7zUvhQ==",
+       "dev": true,
+       "optional": true
+     },
+@@ -12380,26 +12311,6 @@
+       "resolved": "https://registry.npmjs.org/pascalcase/-/pascalcase-0.1.1.tgz",
+       "integrity": "sha1-s2PlXoAGym/iF4TS2yK9FdeRfxQ="
+     },
+-    "patch-package": {
+-      "version": "6.2.2",
+-      "resolved": "https://registry.npmjs.org/patch-package/-/patch-package-6.2.2.tgz",
+-      "integrity": "sha512-YqScVYkVcClUY0v8fF0kWOjDYopzIM8e3bj/RU1DPeEF14+dCGm6UeOYm4jvCyxqIEQ5/eJzmbWfDWnUleFNMg==",
+-      "dev": true,
+-      "requires": {
+-        "@yarnpkg/lockfile": "^1.1.0",
+-        "chalk": "^2.4.2",
+-        "cross-spawn": "^6.0.5",
+-        "find-yarn-workspace-root": "^1.2.1",
+-        "fs-extra": "^7.0.1",
+-        "is-ci": "^2.0.0",
+-        "klaw-sync": "^6.0.0",
+-        "minimist": "^1.2.0",
+-        "rimraf": "^2.6.3",
+-        "semver": "^5.6.0",
+-        "slash": "^2.0.0",
+-        "tmp": "^0.0.33"
+-      }
+-    },
+     "path-exists": {
+       "version": "3.0.0",
+       "resolved": "https://registry.npmjs.org/path-exists/-/path-exists-3.0.0.tgz",
+@@ -13364,9 +13275,9 @@
+       }
+     },
+     "react-native-image-picker": {
+-      "version": "2.3.4",
+-      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.4.tgz",
+-      "integrity": "sha512-4UHu+zOyDT570r5mIbjH6h1iMrKIq/qfsKiAVUEZwncVegh0usJiEYNyJw4CEVwNeehmye/ia5sLDsa+kzIE4g=="
++      "version": "2.3.1",
++      "resolved": "https://registry.npmjs.org/react-native-image-picker/-/react-native-image-picker-2.3.1.tgz",
++      "integrity": "sha512-c/a2h7/T7yBo5KlNQhcSn4xf4+6Li6LfJ59+GZT1ZzzWrj/6X8DiJ/TJBOlOZMC5tJriZKuRkWSsr74k6z+brw=="
+     },
+     "react-native-inappbrowser-reborn": {
+       "version": "3.3.4",
+@@ -15431,150 +15342,6 @@
+         "camelcase": "^4.1.0"
+       }
+     },
+-    "yargs-unparser": {
+-      "version": "1.6.3",
+-      "resolved": "https://registry.npmjs.org/yargs-unparser/-/yargs-unparser-1.6.3.tgz",
+-      "integrity": "sha512-xI32EGCq5mJiSCsQaEPLljD+R3Hq/VG08YGoLTOqu/gHAtCa2S4qPMG20ol4TpKWgSU7j3KMZHvSirNPK0DSjA==",
+-      "dev": true,
+-      "requires": {
+-        "camelcase": "^5.3.1",
+-        "decamelize": "^1.2.0",
+-        "flat": "^4.1.0",
+-        "is-plain-obj": "^1.1.0",
+-        "yargs": "^14.2.3"
+-      },
+-      "dependencies": {
+-        "ansi-regex": {
+-          "version": "4.1.0",
+-          "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-4.1.0.tgz",
+-          "integrity": "sha512-1apePfXM1UOSqw0o9IiFAovVz9M5S1Dg+4TrDwfMewQ6p/rmMueb7tWZjQ1rx4Loy1ArBggoqGpfqqdI4rondg==",
+-          "dev": true
+-        },
+-        "camelcase": {
+-          "version": "5.3.1",
+-          "resolved": "https://registry.npmjs.org/camelcase/-/camelcase-5.3.1.tgz",
+-          "integrity": "sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==",
+-          "dev": true
+-        },
+-        "cliui": {
+-          "version": "5.0.0",
+-          "resolved": "https://registry.npmjs.org/cliui/-/cliui-5.0.0.tgz",
+-          "integrity": "sha512-PYeGSEmmHM6zvoef2w8TPzlrnNpXIjTipYK780YswmIP9vjxmd6Y2a3CB2Ks6/AU8NHjZugXvo8w3oWM2qnwXA==",
+-          "dev": true,
+-          "requires": {
+-            "string-width": "^3.1.0",
+-            "strip-ansi": "^5.2.0",
+-            "wrap-ansi": "^5.1.0"
+-          }
+-        },
+-        "find-up": {
+-          "version": "3.0.0",
+-          "resolved": "https://registry.npmjs.org/find-up/-/find-up-3.0.0.tgz",
+-          "integrity": "sha512-1yD6RmLI1XBfxugvORwlck6f75tYL+iR0jqwsOrOxMZyGYqUuDhJ0l4AXdO1iX/FTs9cBAMEk1gWSEx1kSbylg==",
+-          "dev": true,
+-          "requires": {
+-            "locate-path": "^3.0.0"
+-          }
+-        },
+-        "get-caller-file": {
+-          "version": "2.0.5",
+-          "resolved": "https://registry.npmjs.org/get-caller-file/-/get-caller-file-2.0.5.tgz",
+-          "integrity": "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==",
+-          "dev": true
+-        },
+-        "locate-path": {
+-          "version": "3.0.0",
+-          "resolved": "https://registry.npmjs.org/locate-path/-/locate-path-3.0.0.tgz",
+-          "integrity": "sha512-7AO748wWnIhNqAuaty2ZWHkQHRSNfPVIsPIfwEOWO22AmaoVrWavlOcMR5nzTLNYvp36X220/maaRsrec1G65A==",
+-          "dev": true,
+-          "requires": {
+-            "p-locate": "^3.0.0",
+-            "path-exists": "^3.0.0"
+-          }
+-        },
+-        "p-locate": {
+-          "version": "3.0.0",
+-          "resolved": "https://registry.npmjs.org/p-locate/-/p-locate-3.0.0.tgz",
+-          "integrity": "sha512-x+12w/To+4GFfgJhBEpiDcLozRJGegY+Ei7/z0tSLkMmxGZNybVMSfWj9aJn8Z5Fc7dBUNJOOVgPv2H7IwulSQ==",
+-          "dev": true,
+-          "requires": {
+-            "p-limit": "^2.0.0"
+-          }
+-        },
+-        "require-main-filename": {
+-          "version": "2.0.0",
+-          "resolved": "https://registry.npmjs.org/require-main-filename/-/require-main-filename-2.0.0.tgz",
+-          "integrity": "sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==",
+-          "dev": true
+-        },
+-        "string-width": {
+-          "version": "3.1.0",
+-          "resolved": "https://registry.npmjs.org/string-width/-/string-width-3.1.0.tgz",
+-          "integrity": "sha512-vafcv6KjVZKSgz06oM/H6GDBrAtz8vdhQakGjFIvNrHA6y3HCF1CInLy+QLq8dTJPQ1b+KDUqDFctkdRW44e1w==",
+-          "dev": true,
+-          "requires": {
+-            "emoji-regex": "^7.0.1",
+-            "is-fullwidth-code-point": "^2.0.0",
+-            "strip-ansi": "^5.1.0"
+-          }
+-        },
+-        "strip-ansi": {
+-          "version": "5.2.0",
+-          "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-5.2.0.tgz",
+-          "integrity": "sha512-DuRs1gKbBqsMKIZlrffwlug8MHkcnpjs5VPmL1PAh+mA30U0DTotfDZ0d2UUsXpPmPmMMJ6W773MaA3J+lbiWA==",
+-          "dev": true,
+-          "requires": {
+-            "ansi-regex": "^4.1.0"
+-          }
+-        },
+-        "wrap-ansi": {
+-          "version": "5.1.0",
+-          "resolved": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-5.1.0.tgz",
+-          "integrity": "sha512-QC1/iN/2/RPVJ5jYK8BGttj5z83LmSKmvbvrXPNCLZSEb32KKVDJDl/MOt2N01qU2H/FkzEa9PKto1BqDjtd7Q==",
+-          "dev": true,
+-          "requires": {
+-            "ansi-styles": "^3.2.0",
+-            "string-width": "^3.0.0",
+-            "strip-ansi": "^5.0.0"
+-          }
+-        },
+-        "y18n": {
+-          "version": "4.0.0",
+-          "resolved": "https://registry.npmjs.org/y18n/-/y18n-4.0.0.tgz",
+-          "integrity": "sha512-r9S/ZyXu/Xu9q1tYlpsLIsa3EeLXXk0VwlxqTcFRfg9EhMW+17kbt9G0NrgCmhGb5vT2hyhJZLfDGx+7+5Uj/w==",
+-          "dev": true
+-        },
+-        "yargs": {
+-          "version": "14.2.3",
+-          "resolved": "https://registry.npmjs.org/yargs/-/yargs-14.2.3.tgz",
+-          "integrity": "sha512-ZbotRWhF+lkjijC/VhmOT9wSgyBQ7+zr13+YLkhfsSiTriYsMzkTUFP18pFhWwBeMa5gUc1MzbhrO6/VB7c9Xg==",
+-          "dev": true,
+-          "requires": {
+-            "cliui": "^5.0.0",
+-            "decamelize": "^1.2.0",
+-            "find-up": "^3.0.0",
+-            "get-caller-file": "^2.0.1",
+-            "require-directory": "^2.1.1",
+-            "require-main-filename": "^2.0.0",
+-            "set-blocking": "^2.0.0",
+-            "string-width": "^3.0.0",
+-            "which-module": "^2.0.0",
+-            "y18n": "^4.0.0",
+-            "yargs-parser": "^15.0.1"
+-          }
+-        },
+-        "yargs-parser": {
+-          "version": "15.0.1",
+-          "resolved": "https://registry.npmjs.org/yargs-parser/-/yargs-parser-15.0.1.tgz",
+-          "integrity": "sha512-0OAMV2mAZQrs3FkNpDQcBk1x5HXb8X4twADss4S0Iuk+2dGnLOE/fRHrsYm542GduMveyA77OF4wrNJuanRCWw==",
+-          "dev": true,
+-          "requires": {
+-            "camelcase": "^5.0.0",
+-            "decamelize": "^1.2.0"
+-          }
+-        }
+-      }
+-    },
+     "yazl": {
+       "version": "2.5.1",
+       "resolved": "https://registry.npmjs.org/yazl/-/yazl-2.5.1.tgz",
+diff --git a/package.json b/package.json
+index 1ee21e4..9ac2772 100644
+--- a/package.json
++++ b/package.json
+@@ -1,19 +1,17 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.9",
+-  "mendix": {
+-    "templateVersion": "5.1.8"
+-  },
++  "version": "3.1.0",
+   "private": true,
+   "scripts": {
+-    "postinstall": "patch-package && jetify",
+-    "configure": "native-mobile-toolkit configure --config-path='./config.json' --verbose"
++    "start": "node node_modules/react-native/local-cli/cli.js start",
++    "postinstall": "npx jetify",
++    "test": "jest"
+   },
+   "dependencies": {
+     "@react-native-community/art": "1.2.0",
+     "@react-native-community/async-storage": "1.8.1",
+     "@react-native-community/cameraroll": "1.4.0",
+-    "@react-native-community/datetimepicker": "3.0.4",
++    "@react-native-community/datetimepicker": "2.3.0",
+     "@react-native-community/geolocation": "2.0.2",
+     "@react-native-community/masked-view": "0.1.7",
+     "@react-native-community/netinfo": "5.6.2",
+@@ -30,7 +28,7 @@
+     "react-native-firebase": "5.6.0",
+     "react-native-geocoder": "0.5.0",
+     "react-native-gesture-handler": "1.6.0",
+-    "react-native-image-picker": "2.3.4",
++    "react-native-image-picker": "2.3.1",
+     "react-native-inappbrowser-reborn": "3.3.4",
+     "react-native-localize": "1.3.4",
+     "react-native-maps": "0.27.0",
+@@ -49,13 +47,11 @@
+   "devDependencies": {
+     "@babel/core": "^7.5.4",
+     "@babel/runtime": "^7.5.4",
+-    "@mendix/native-mobile-toolkit": "latest",
+     "babel-jest": "^25.2.6",
+-    "detox": "17.6.1",
++    "detox": "16.9.2",
+     "jest": "^25.2.7",
+     "jetifier": "^1.6.3",
+     "metro-react-native-babel-preset": "^0.58.0",
+-    "patch-package": "^6.2.2",
+     "react-test-renderer": "~16.9.0"
+   },
+   "jest": {
+diff --git a/patches/react-native+0.61.5.patch b/patches/react-native+0.61.5.patch
+deleted file mode 100644
+index 0f6a55c..0000000
+--- a/patches/react-native+0.61.5.patch
++++ /dev/null
+@@ -1,15 +0,0 @@
+-diff --git a/node_modules/react-native/Libraries/Image/RCTUIImageViewAnimated.m b/node_modules/react-native/Libraries/Image/RCTUIImageViewAnimated.m
+-index 01aa75f..d40ea37 100644
+---- a/node_modules/react-native/Libraries/Image/RCTUIImageViewAnimated.m
+-+++ b/node_modules/react-native/Libraries/Image/RCTUIImageViewAnimated.m
+-@@ -266,6 +266,10 @@ - (void)displayDidRefresh:(CADisplayLink *)displayLink
+- 
+- - (void)displayLayer:(CALayer *)layer
+- {
+-+  if (!_currentFrame) {
+-+    _currentFrame = self.image;
+-+  }
+-+
+-   if (_currentFrame) {
+-     layer.contentsScale = self.animatedImageScale;
+-     layer.contents = (__bridge id)_currentFrame.CGImage;
+diff --git a/patches/react-native-firebase+5.6.0.patch b/patches/react-native-firebase+5.6.0.patch
+deleted file mode 100644
+index addcda4..0000000
+--- a/patches/react-native-firebase+5.6.0.patch
++++ /dev/null
+@@ -1,107 +0,0 @@
+-diff --git a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-index 24f472e..085f926 100644
+---- a/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-+++ b/node_modules/react-native-firebase/android/src/main/java/io/invertase/firebase/RNFirebaseModule.java
+-@@ -155,24 +155,33 @@ public class RNFirebaseModule extends ReactContextBaseJavaModule {
+-   public Map<String, Object> getConstants() {
+-     Map<String, Object> constants = new HashMap<>();
+-     List<Map<String, Object>> appMapsList = new ArrayList<>();
+--    List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+--
+--    // TODO no way to get client id currently from app options - firebase sdk issue
+--    for (FirebaseApp app : firebaseAppList) {
+--      String appName = app.getName();
+--      FirebaseOptions appOptions = app.getOptions();
+--      Map<String, Object> appProps = new HashMap<>();
+--
+--      appProps.put("name", appName);
+--      appProps.put("apiKey", appOptions.getApiKey());
+--      appProps.put("appId", appOptions.getApplicationId());
+--      appProps.put("projectId", appOptions.getProjectId());
+--      appProps.put("projectId", appOptions.getProjectId());
+--      appProps.put("databaseURL", appOptions.getDatabaseUrl());
+--      appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+--      appProps.put("storageBucket", appOptions.getStorageBucket());
+--
+--      appMapsList.add(appProps);
+-+
+-+    try {
+-+      List<FirebaseApp> firebaseAppList = FirebaseApp.getApps(getReactApplicationContext());
+-+
+-+      // TODO no way to get client id currently from app options - firebase sdk issue
+-+      for (FirebaseApp app : firebaseAppList) {
+-+        String appName = app.getName();
+-+        FirebaseOptions appOptions = app.getOptions();
+-+        Map<String, Object> appProps = new HashMap<>();
+-+
+-+        appProps.put("name", appName);
+-+        appProps.put("apiKey", appOptions.getApiKey());
+-+        appProps.put("appId", appOptions.getApplicationId());
+-+        appProps.put("projectId", appOptions.getProjectId());
+-+        appProps.put("projectId", appOptions.getProjectId());
+-+        appProps.put("databaseURL", appOptions.getDatabaseUrl());
+-+        appProps.put("messagingSenderId", appOptions.getGcmSenderId());
+-+        appProps.put("storageBucket", appOptions.getStorageBucket());
+-+
+-+        appMapsList.add(appProps);
+-+      }
+-+    } catch (Exception e) {
+-+      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+-+      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+-+    } catch (NoClassDefFoundError e) {
+-+      Log.e("RNFirebaseModule", "Firebase app not found. Did you enable the Firebase capability?");
+-+      Log.e("RNFirebaseModule", e.getLocalizedMessage());
+-     }
+- 
+-     constants.put("apps", appMapsList);
+-diff --git a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+-index 90fdb1d..92ac092 100644
+---- a/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+-+++ b/node_modules/react-native-firebase/ios/RNFirebase/messaging/RNFirebaseMessaging.m
+-@@ -187,8 +187,10 @@ - (void)messaging:(nonnull FIRMessaging *)messaging
+- }
+- 
+- RCT_EXPORT_METHOD(registerForRemoteNotifications:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+--    [RCTSharedApplication() registerForRemoteNotifications];
+--    resolve(nil);
+-+    dispatch_async(dispatch_get_main_queue(), ^{
+-+        [RCTSharedApplication() registerForRemoteNotifications];
+-+        resolve(nil);
+-+    });
+- }
+- 
+- // Non Web SDK methods
+-diff --git a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-index d3aa1e3..b35e7c2 100644
+---- a/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-+++ b/node_modules/react-native-firebase/ios/RNFirebase/notifications/RNFirebaseNotifications.m
+-@@ -102,17 +102,19 @@ - (void)didReceiveLocalNotification:(nonnull UILocalNotification *)localNotifica
+- 
+- RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchResult)fetchResult) {
+-     if (handlerKey != nil) {
+--        void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+--        if (fetchCompletionHandler != nil) {
+--            fetchCompletionHandlers[handlerKey] = nil;
+--            fetchCompletionHandler(fetchResult);
+--        } else {
+--            void(^completionHandler)(void) = completionHandlers[handlerKey];
+--            if (completionHandler != nil) {
+--                completionHandlers[handlerKey] = nil;
+--                completionHandler();
+-+        dispatch_async(dispatch_get_main_queue(), ^{
+-+            void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+-+            if (fetchCompletionHandler != nil) {
+-+                fetchCompletionHandlers[handlerKey] = nil;
+-+                fetchCompletionHandler(fetchResult);
+-+            } else {
+-+                void(^completionHandler)(void) = completionHandlers[handlerKey];
+-+                if (completionHandler != nil) {
+-+                    completionHandlers[handlerKey] = nil;
+-+                    completionHandler();
+-+                }
+-             }
+--        }
+-+        });
+-     }
+- }
+- 
+diff --git a/patches/react-native-image-picker+2.3.4.patch b/patches/react-native-image-picker+2.3.4.patch
+deleted file mode 100644
+index e05f069..0000000
+--- a/patches/react-native-image-picker+2.3.4.patch
++++ /dev/null
+@@ -1,16 +0,0 @@
+-diff --git a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-index aa7641c..a12f055 100644
+---- a/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-+++ b/node_modules/react-native-image-picker/android/src/main/java/com/imagepicker/utils/MediaUtils.java
+-@@ -216,6 +216,11 @@ public class MediaUtils
+-             scaledPhoto.recycle();
+-             scaledPhoto = null;
+-         }
+-+        if (imageConfig.original.getAbsolutePath() != null)
+-+        {
+-+            new File(imageConfig.original.getAbsolutePath()).delete();
+-+        }
+-+
+-         return result;
+-     }
+- 
+diff --git a/react-native.config.js b/react-native.config.js
+index e103df2..67421b6 100644
+--- a/react-native.config.js
++++ b/react-native.config.js
+@@ -1,23 +1,28 @@
+ module.exports = {
+     dependencies: {
+-        'react-native-code-push': {
++        'react-native-firebase': {
+             platforms: {
+                 // disable only on Android as we require some conditional setup
+                 android: null,
+             },
+         },
+-        'react-native-splash-screen': {
++        'react-native-camera': {
+             platforms: {
+-                android: null,
++                // disable only on iOS as we require some conditional setup
+                 ios: null,
+             },
+         },
+-        'react-native-video': {
++        'react-native-code-push': {
+             platforms: {
+-              android: {
+-                sourceDir: '../node_modules/react-native-video/android-exoplayer',
+-              },
++                // disable only on Android as we require some conditional setup
++                android: null,
+             },
+         },
++        'react-native-splash-screen': {
++            platforms: {
++                android: null,
++                ios: null,
++            },
++        }
+     },
+ };

@@ -1,0 +1,432 @@
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 8acb126..b4095ba 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -28,8 +28,7 @@
+       android:roundIcon="@mipmap/ic_launcher_round"
+       android:allowBackup="false"
+       android:largeHeap="true"
+-      android:theme="@style/AppTheme"
+-      android:requestLegacyExternalStorage="true">
++      android:theme="@style/AppTheme">
+       <activity
+         android:name="com.mendix.nativetemplate.MainActivity"
+         android:label="@string/app_name"
+diff --git a/android/mendixnative-release/mendix.gradle b/android/mendixnative-release/mendix.gradle
+index ee91851..f7fd7a0 100644
+--- a/android/mendixnative-release/mendix.gradle
++++ b/android/mendixnative-release/mendix.gradle
+@@ -393,7 +393,7 @@ def generatedCodeDir = new File(generatedSrcDir, generatedFilePackage.replace('.
+ 
+ def capabilitiesConfig = new File("${rootDir}capabilities-setup-config.json")
+ def unlinkedDependenciesConfigFile = new File("${rootDir}unlinked-dependency-config.json")
+-def capabilitiesFile = new File("${rootDir}capabilities.android.json")
++def capabilitiesFile = new File("${rootDir}capabilities.json")
+ def mendixModules = new MendixModules(capabilitiesConfig, unlinkedDependenciesConfigFile, capabilitiesFile, cliBinPath, rootDir, logger, LOG_PREFIX)
+ 
+ def logLifecycle = { String message -> logger.lifecycle("${LOG_PREFIX}${message}") }
+diff --git a/capabilities.ios.json b/capabilities.ios.json
+deleted file mode 100644
+index 0919a26..0000000
+--- a/capabilities.ios.json
++++ /dev/null
+@@ -1,7 +0,0 @@
+-{
+-    "deepLink": false,
+-    "pushNotifications": false,
+-    "bluetooth": true,
+-    "maps": true,
+-    "mapsIos": true
+-}
+diff --git a/capabilities.android.json b/capabilities.json
+similarity index 100%
+rename from capabilities.android.json
+rename to capabilities.json
+diff --git a/ios/Podfile.lock b/ios/Podfile.lock
+index 7d80a82..4e6fa32 100644
+--- a/ios/Podfile.lock
++++ b/ios/Podfile.lock
+@@ -18,54 +18,34 @@ PODS:
+     - React-Core (= 0.61.5)
+     - React-jsi (= 0.61.5)
+     - ReactCommon/turbomodule/core (= 0.61.5)
+-  - Firebase/Core (6.19.0):
++  - Firebase/Core (6.33.0):
+     - Firebase/CoreOnly
+-    - FirebaseAnalytics (= 6.3.1)
+-  - Firebase/CoreOnly (6.19.0):
+-    - FirebaseCore (= 6.6.4)
+-  - Firebase/Messaging (6.19.0):
+-    - Firebase/CoreOnly
+-    - FirebaseMessaging (~> 4.3.0)
+-  - FirebaseAnalytics (6.3.1):
+-    - FirebaseCore (~> 6.6)
+-    - FirebaseInstallations (~> 1.1)
+-    - GoogleAppMeasurement (= 6.3.1)
+-    - GoogleUtilities/AppDelegateSwizzler (~> 6.0)
+-    - GoogleUtilities/MethodSwizzler (~> 6.0)
+-    - GoogleUtilities/Network (~> 6.0)
+-    - "GoogleUtilities/NSData+zlib (~> 6.0)"
+-    - nanopb (= 0.3.9011)
+-  - FirebaseAnalyticsInterop (1.5.0)
+-  - FirebaseCore (6.6.4):
+-    - FirebaseCoreDiagnostics (~> 1.2)
+-    - FirebaseCoreDiagnosticsInterop (~> 1.2)
+-    - GoogleUtilities/Environment (~> 6.5)
+-    - GoogleUtilities/Logger (~> 6.5)
+-  - FirebaseCoreDiagnostics (1.2.4):
+-    - FirebaseCoreDiagnosticsInterop (~> 1.2)
+-    - GoogleDataTransportCCTSupport (~> 3.0)
+-    - GoogleUtilities/Environment (~> 6.5)
+-    - GoogleUtilities/Logger (~> 6.5)
+-    - nanopb (~> 0.3.901)
+-  - FirebaseCoreDiagnosticsInterop (1.2.0)
+-  - FirebaseInstallations (1.1.1):
+-    - FirebaseCore (~> 6.6)
+-    - GoogleUtilities/UserDefaults (~> 6.5)
++    - FirebaseAnalytics (= 6.8.3)
++  - Firebase/CoreOnly (6.33.0):
++    - FirebaseCore (= 6.10.3)
++  - FirebaseAnalytics (6.8.3):
++    - FirebaseCore (~> 6.10)
++    - FirebaseInstallations (~> 1.6)
++    - GoogleAppMeasurement (= 6.8.3)
++    - GoogleUtilities/AppDelegateSwizzler (~> 6.7)
++    - GoogleUtilities/MethodSwizzler (~> 6.7)
++    - GoogleUtilities/Network (~> 6.7)
++    - "GoogleUtilities/NSData+zlib (~> 6.7)"
++    - nanopb (~> 1.30906.0)
++  - FirebaseCore (6.10.3):
++    - FirebaseCoreDiagnostics (~> 1.6)
++    - GoogleUtilities/Environment (~> 6.7)
++    - GoogleUtilities/Logger (~> 6.7)
++  - FirebaseCoreDiagnostics (1.7.0):
++    - GoogleDataTransport (~> 7.4)
++    - GoogleUtilities/Environment (~> 6.7)
++    - GoogleUtilities/Logger (~> 6.7)
++    - nanopb (~> 1.30906.0)
++  - FirebaseInstallations (1.7.0):
++    - FirebaseCore (~> 6.10)
++    - GoogleUtilities/Environment (~> 6.7)
++    - GoogleUtilities/UserDefaults (~> 6.7)
+     - PromisesObjC (~> 1.2)
+-  - FirebaseInstanceID (4.3.4):
+-    - FirebaseCore (~> 6.6)
+-    - FirebaseInstallations (~> 1.0)
+-    - GoogleUtilities/Environment (~> 6.5)
+-    - GoogleUtilities/UserDefaults (~> 6.5)
+-  - FirebaseMessaging (4.3.1):
+-    - FirebaseAnalyticsInterop (~> 1.5)
+-    - FirebaseCore (~> 6.6)
+-    - FirebaseInstanceID (~> 4.3)
+-    - GoogleUtilities/AppDelegateSwizzler (~> 6.5)
+-    - GoogleUtilities/Environment (~> 6.5)
+-    - GoogleUtilities/Reachability (~> 6.5)
+-    - GoogleUtilities/UserDefaults (~> 6.5)
+-    - Protobuf (>= 3.9.2, ~> 3.9)
+   - Folly (2018.10.22.00):
+     - boost-for-react-native
+     - DoubleConversion
+@@ -92,52 +72,37 @@ PODS:
+     - GoogleMaps
+   - Google-Maps-iOS-Utils/QuadTree (2.1.0):
+     - GoogleMaps
+-  - GoogleAppMeasurement (6.3.1):
+-    - GoogleUtilities/AppDelegateSwizzler (~> 6.0)
+-    - GoogleUtilities/MethodSwizzler (~> 6.0)
+-    - GoogleUtilities/Network (~> 6.0)
+-    - "GoogleUtilities/NSData+zlib (~> 6.0)"
+-    - nanopb (= 0.3.9011)
+-  - GoogleDataTransport (6.2.1)
+-  - GoogleDataTransportCCTSupport (3.0.0):
+-    - GoogleDataTransport (~> 6.0)
+-    - nanopb (~> 0.3.901)
++  - GoogleAppMeasurement (6.8.3):
++    - GoogleUtilities/AppDelegateSwizzler (~> 6.7)
++    - GoogleUtilities/MethodSwizzler (~> 6.7)
++    - GoogleUtilities/Network (~> 6.7)
++    - "GoogleUtilities/NSData+zlib (~> 6.7)"
++    - nanopb (~> 1.30906.0)
++  - GoogleDataTransport (7.4.0):
++    - nanopb (~> 1.30906.0)
+   - GoogleMaps (3.5.0):
+     - GoogleMaps/Maps (= 3.5.0)
+   - GoogleMaps/Base (3.5.0)
+   - GoogleMaps/Maps (3.5.0):
+     - GoogleMaps/Base
+-  - GoogleUtilities (6.5.2):
+-    - GoogleUtilities/AppDelegateSwizzler (= 6.5.2)
+-    - GoogleUtilities/Environment (= 6.5.2)
+-    - GoogleUtilities/ISASwizzler (= 6.5.2)
+-    - GoogleUtilities/Logger (= 6.5.2)
+-    - GoogleUtilities/MethodSwizzler (= 6.5.2)
+-    - GoogleUtilities/Network (= 6.5.2)
+-    - "GoogleUtilities/NSData+zlib (= 6.5.2)"
+-    - GoogleUtilities/Reachability (= 6.5.2)
+-    - GoogleUtilities/SwizzlerTestHelpers (= 6.5.2)
+-    - GoogleUtilities/UserDefaults (= 6.5.2)
+-  - GoogleUtilities/AppDelegateSwizzler (6.5.2):
++  - GoogleUtilities/AppDelegateSwizzler (6.7.2):
+     - GoogleUtilities/Environment
+     - GoogleUtilities/Logger
+     - GoogleUtilities/Network
+-  - GoogleUtilities/Environment (6.5.2)
+-  - GoogleUtilities/ISASwizzler (6.5.2)
+-  - GoogleUtilities/Logger (6.5.2):
++  - GoogleUtilities/Environment (6.7.2):
++    - PromisesObjC (~> 1.2)
++  - GoogleUtilities/Logger (6.7.2):
+     - GoogleUtilities/Environment
+-  - GoogleUtilities/MethodSwizzler (6.5.2):
++  - GoogleUtilities/MethodSwizzler (6.7.2):
+     - GoogleUtilities/Logger
+-  - GoogleUtilities/Network (6.5.2):
++  - GoogleUtilities/Network (6.7.2):
+     - GoogleUtilities/Logger
+     - "GoogleUtilities/NSData+zlib"
+     - GoogleUtilities/Reachability
+-  - "GoogleUtilities/NSData+zlib (6.5.2)"
+-  - GoogleUtilities/Reachability (6.5.2):
++  - "GoogleUtilities/NSData+zlib (6.7.2)"
++  - GoogleUtilities/Reachability (6.7.2):
+     - GoogleUtilities/Logger
+-  - GoogleUtilities/SwizzlerTestHelpers (6.5.2):
+-    - GoogleUtilities/MethodSwizzler
+-  - GoogleUtilities/UserDefaults (6.5.2):
++  - GoogleUtilities/UserDefaults (6.7.2):
+     - GoogleUtilities/Logger
+   - IQKeyboardManager (6.5.6)
+   - JWT (3.0.0-beta.12):
+@@ -151,13 +116,12 @@ PODS:
+   - libwebp/mux (1.1.0):
+     - libwebp/demux
+   - libwebp/webp (1.1.0)
+-  - nanopb (0.3.9011):
+-    - nanopb/decode (= 0.3.9011)
+-    - nanopb/encode (= 0.3.9011)
+-  - nanopb/decode (0.3.9011)
+-  - nanopb/encode (0.3.9011)
++  - nanopb (1.30906.0):
++    - nanopb/decode (= 1.30906.0)
++    - nanopb/encode (= 1.30906.0)
++  - nanopb/decode (1.30906.0)
++  - nanopb/encode (1.30906.0)
+   - PromisesObjC (1.2.10)
+-  - Protobuf (3.13.0)
+   - RCTRequired (0.61.5)
+   - RCTTypeSafety (0.61.5):
+     - FBLazyVector (= 0.61.5)
+@@ -443,9 +407,9 @@ PODS:
+     - React
+   - RNVectorIcons (6.6.0):
+     - React
+-  - SDWebImage (5.9.2):
+-    - SDWebImage/Core (= 5.9.2)
+-  - SDWebImage/Core (5.9.2)
++  - SDWebImage (5.9.1):
++    - SDWebImage/Core (= 5.9.1)
++  - SDWebImage/Core (5.9.1)
+   - SDWebImageWebPCoder (0.4.1):
+     - libwebp (~> 1.0)
+     - SDWebImage/Core (~> 5.5)
+@@ -456,18 +420,13 @@ PODS:
+ 
+ DEPENDENCIES:
+   - CodePush (from `../node_modules/react-native-code-push`)
+-  - Crashlytics (~> 3.14.0)
+   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
+-  - Fabric (~> 1.10.2)
+   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
+   - FBReactNativeSpec (from `../node_modules/react-native/Libraries/FBReactNativeSpec`)
+-  - Firebase/Core (~> 6.19.0)
+-  - Firebase/Messaging (~> 6.19.0)
+   - Folly (from `../node_modules/react-native/third-party-podspecs/Folly.podspec`)
+   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
+   - Google-Maps-iOS-Utils
+   - GoogleMaps
+-  - GoogleUtilities (~> 6.5.1)
+   - IQKeyboardManager
+   - RCTRequired (from `../node_modules/react-native/Libraries/RCTRequired`)
+   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
+@@ -534,17 +493,12 @@ SPEC REPOS:
+     - Fabric
+     - Firebase
+     - FirebaseAnalytics
+-    - FirebaseAnalyticsInterop
+     - FirebaseCore
+     - FirebaseCoreDiagnostics
+-    - FirebaseCoreDiagnosticsInterop
+     - FirebaseInstallations
+-    - FirebaseInstanceID
+-    - FirebaseMessaging
+     - Google-Maps-iOS-Utils
+     - GoogleAppMeasurement
+     - GoogleDataTransport
+-    - GoogleDataTransportCCTSupport
+     - GoogleMaps
+     - GoogleUtilities
+     - IQKeyboardManager
+@@ -552,7 +506,6 @@ SPEC REPOS:
+     - libwebp
+     - nanopb
+     - PromisesObjC
+-    - Protobuf
+     - SDWebImage
+     - SDWebImageWebPCoder
+     - SSZipArchive
+@@ -686,29 +639,23 @@ SPEC CHECKSUMS:
+   Fabric: ea977e3cd9c20425516d3dafd3bf8c941c51223f
+   FBLazyVector: aaeaf388755e4f29cd74acbc9e3b8da6d807c37f
+   FBReactNativeSpec: 118d0d177724c2d67f08a59136eb29ef5943ec75
+-  Firebase: d55ddb0e0bb3207166cddc028647833d8a1b5b6f
+-  FirebaseAnalytics: 572e467f3d977825266e8ccd52674aa3e6f47eac
+-  FirebaseAnalyticsInterop: 3f86269c38ae41f47afeb43ebf32a001f58fcdae
+-  FirebaseCore: ed0a24c758a57c2b88c5efa8e6a8195e868af589
+-  FirebaseCoreDiagnostics: b59c024493a409f8aecba02c99928d0d8431d159
+-  FirebaseCoreDiagnosticsInterop: 296e2c5f5314500a850ad0b83e9e7c10b011a850
+-  FirebaseInstallations: acb3216eb9784d3b1d2d2d635ff74fa892cc0c44
+-  FirebaseInstanceID: cef67c4967c7cecb56ea65d8acbb4834825c587b
+-  FirebaseMessaging: 828e66eb357a893e3cebd9ee0f6bc1941447cc94
++  Firebase: 8db6f2d1b2c5e2984efba4949a145875a8f65fe5
++  FirebaseAnalytics: 5dd088bd2e67bb9d13dbf792d1164ceaf3052193
++  FirebaseCore: d889d9e12535b7f36ac8bfbf1713a0836a3012cd
++  FirebaseCoreDiagnostics: 770ac5958e1372ce67959ae4b4f31d8e127c3ac1
++  FirebaseInstallations: 466c7b4d1f58fe16707693091da253726a731ed2
+   Folly: 30e7936e1c45c08d884aa59369ed951a8e68cf51
+   glog: 1f3da668190260b06b429bb211bfbee5cd790c28
+   Google-Maps-iOS-Utils: c32891ff472eaaa1fca032beedafa1a013af7875
+-  GoogleAppMeasurement: c29d405ff76e18551b5d158eaba6753fda8c7542
+-  GoogleDataTransport: 9a8a16f79feffc7f42096743de2a7c4815e84020
+-  GoogleDataTransportCCTSupport: 0f39025e8cf51f168711bd3fb773938d7e62ddb5
++  GoogleAppMeasurement: 966e88df9d19c15715137bb2ddaf52373f111436
++  GoogleDataTransport: b7f406340a291370045a270c599e53c6fa6ec20f
+   GoogleMaps: 32ca02de09de357a10ac773f2c70f1986751392d
+-  GoogleUtilities: ad0f3b691c67909d03a3327cc205222ab8f42e0e
++  GoogleUtilities: 7f2f5a07f888cdb145101d6042bc4422f57e70b3
+   IQKeyboardManager: 2a6e97afdafc7becf0cb17a9a8d795e3a980717f
+   JWT: 9b5c05abbcc1a0e69c3c91e1655b3387fc7e581d
+   libwebp: 946cb3063cea9236285f7e9a8505d806d30e07f3
+-  nanopb: 18003b5e52dab79db540fe93fe9579f399bd1ccd
++  nanopb: 59317e09cf1f1a0af72f12af412d54edf52603fc
+   PromisesObjC: b14b1c6b68e306650688599de8a45e49fae81151
+-  Protobuf: 3dac39b34a08151c6d949560efe3f86134a3f748
+   RCTRequired: b153add4da6e7dbc44aebf93f3cf4fcae392ddf1
+   RCTTypeSafety: 9aa1b91d7f9310fc6eadc3cf95126ffe818af320
+   React: b6a59ef847b2b40bb6e0180a97d0ca716969ac78
+@@ -760,12 +707,12 @@ SPEC CHECKSUMS:
+   RNSound: c980916b596cc15c8dcd2f6ecd3b13c4881dbe20
+   RNSVG: 7e16ddfc6e00d5aa69c9eb83e699bcce5dcb85d4
+   RNVectorIcons: 0bb4def82230be1333ddaeee9fcba45f0b288ed4
+-  SDWebImage: 0b42b8719ab0c5257177d5894306e8a336b21cbb
++  SDWebImage: a990c053fff71e388a10f3357edb0be17929c9c5
+   SDWebImageWebPCoder: 36f8f47bd9879a8aea6044765c1351120fd8e3a8
+   SSZipArchive: 62d4947b08730e4cda640473b0066d209ff033c9
+   TouchID: ba4c656d849cceabc2e4eef722dea5e55959ecf4
+   Yoga: f2a7cd4280bfe2cca5a7aed98ba0eb3d1310f18b
+ 
+-PODFILE CHECKSUM: 0cebfb2ab0abcf7ed7edc73265786a8151a4458d
++PODFILE CHECKSUM: 907c29c4504ccf424d696b27015e7d1f356cb212
+ 
+ COCOAPODS: 1.9.1
+diff --git a/ios/mendix_utils.rb b/ios/mendix_utils.rb
+index 5f4379c..b71748e 100644
+--- a/ios/mendix_utils.rb
++++ b/ios/mendix_utils.rb
+@@ -112,7 +112,7 @@ def get_capabilities_setup_config
+ end
+ 
+ def get_project_capabilities
+-  read_json_file_gracefully("capabilities.ios.json") || {}
++  read_json_file_gracefully("capabilities.json") || {}
+ end
+ 
+ # Source @react-native-community/cli-platform-ios/native_modules
+diff --git a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+index cee16f9..9f926e3 100644
+--- a/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
++++ b/ios/nativeTemplate/Images.xcassets/AppIcon.appiconset/Contents.json
+@@ -48,60 +48,6 @@
+       "filename" : "app@3x.png",
+       "scale" : "3x"
+     },
+-    {
+-      "filename" : "notification@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "20x20"
+-    },
+-    {
+-      "filename" : "notification@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "20x20"
+-    },
+-    {
+-      "filename" : "settings@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "29x29"
+-    },
+-    {
+-      "filename" : "settings@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "29x29"
+-    },
+-    {
+-      "filename" : "spotlight@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "40x40"
+-    },
+-    {
+-      "filename" : "spotlight@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "40x40"
+-    },
+-    {
+-      "filename" : "ipadapp@1x.png",
+-      "idiom" : "ipad",
+-      "scale" : "1x",
+-      "size" : "76x76"
+-    },
+-    {
+-      "filename" : "ipadapp@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "76x76"
+-    },
+-    {
+-      "filename" : "ipadproapp@2x.png",
+-      "idiom" : "ipad",
+-      "scale" : "2x",
+-      "size" : "83.5x83.5"
+-    },
+     {
+       "size" : "1024x1024",
+       "idiom" : "ios-marketing",
+diff --git a/package-lock.json b/package-lock.json
+index b5e91ee..cb87284 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.0",
++  "version": "3.1.0",
+   "lockfileVersion": 1,
+   "requires": true,
+   "dependencies": {
+diff --git a/package.json b/package.json
+index e9eb9cd..4108137 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "native-template",
+-  "version": "5.1.0",
++  "version": "3.1.0",
+   "private": true,
+   "scripts": {
+     "start": "node node_modules/react-native/local-cli/cli.js start",
