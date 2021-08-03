@@ -33,33 +33,40 @@ const writeFile = util.promisify(fs.writeFile);
         core.info(`Process ${count} latest releases`);
         const releases = (await cmd('git', ['tag', '-l'])).split('\n').filter((release) => {
             return Boolean(release) && !(new RegExp('beta|alpha|rc|master').test(release));
-        }).reverse().slice(0, count);
+        }).reverse();
         core.endGroup();
 
         core.startGroup('Generating diffs')
         const diffsDir = `${workSpaceDir}/diffs`;
-        const writeFileActions = [];
+        const writeableActions = [];
         for (const from of releases) {
             for (const to of releases) {
                 const filePath = `${diffsDir}/${from}..${to}.diff`;
                 if (to === from || fs.existsSync(filePath)) {
                     continue;
                 }
-                writeFileActions.push(cmd('git', ['diff', '--binary', `tags/${from}..tags/${to}`]).then((value) => writeFile(filePath, value)));
+                writeableActions.push({
+                    filePath,
+                    to,
+                    from,
+                });
             }
         }
         core.endGroup();
 
-        if (!writeFileActions.length) {
+        if (!writeableActions.length) {
             core.info('No new changes to commit');
             process.exit(0);
         }
 
         core.startGroup('Writing to File system')
-        await Promise.all(writeFileActions);
+        const writeFileActions = writeableActions.slice(0, count);
+        await Promise.all(writeFileActions.map(({filePath, from, to}) => {
+            return cmd('git', ['diff', '--binary', `tags/${from}..tags/${to}`]).then((value) => writeFile(filePath, value))
+        }));
         core.endGroup()
 
-        core.info(`Generated ${writeFileActions.length} new diffs`);
+        core.info(`Generated ${writeFileActions.length} of ${writeableActions.length} new diffs`);
         cd(workSpaceDir);
         await cmd('git', ['config', '--global', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
         await cmd('git', ['config', '--global', 'user.name', 'github-action']);
